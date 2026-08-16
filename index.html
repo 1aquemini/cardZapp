@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Card Library & Scanner</title>
+  <title>Card Library & Inventory Manager</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="style.css">
@@ -11,32 +11,75 @@
 <body>
   <div class="card-manager-wrapper">
     <header>
-      <h2>Card Database Search</h2>
-      <p>Lookup card details, inventory value, and historical printings seamlessly.</p>
+      <h2>Card Database Search & Inventory</h2>
+      <p>Lookup card details, manage your collection, and import inventories seamlessly.</p>
     </header>
 
-    <!-- Real-Time Video Stream Scanner Interface -->
-    <div class="scanner-action-panel">
-      <button id="toggle-scanner-btn" class="btn-primary">Start Live Scanner</button>
-      
-      <div id="scanner-container" style="display: none; position: relative; margin-top: 15px;">
-        <video id="live-card-stream" autoplay playsinline style="width: 100%; max-width: 500px; border-radius: 8px; border: 2px solid #333;"></video>
-        <div class="scan-overlay-guide" style="position: absolute; top: 10%; left: 10%; right: 10%; height: 20%; border: 2px dashed #00ffcc; pointer-events: none;">
-          <span style="color: #00ffcc; font-size: 12px; background: rgba(0,0,0,0.7); padding: 2px 6px;">Align Card Title Here</span>
-        </div>
+    <!-- Navigation / View Tabs -->
+    <nav class="app-nav" style="margin-bottom: 20px; display: flex; gap: 10px;">
+      <button id="tab-collection" class="btn-primary" onclick="CardApp.switchView('collection')">My Collection</button>
+      <button id="tab-scanner" class="btn-secondary" onclick="CardApp.switchView('scanner')" style="background: #7f8c8d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Live Scanner</button>
+    </nav>
+
+    <!-- COLLECTION VIEW -->
+    <div id="view-collection" class="view-section">
+      <div class="inventory-controls" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <!-- CSV Import -->
+        <label class="btn-primary" style="cursor: pointer; display: inline-block; padding: 10px 15px; background: #27ae60; color: white; border-radius: 6px;">
+          Import CSV Collection <input type="file" id="csv-file-input" accept=".csv" style="display: none;" onchange="CardApp.handleCSVImport(event)">
+        </label>
+        
+        <!-- Bulk Loader Template Download -->
+        <button onclick="CardApp.downloadBulkTemplate()" class="btn-primary" style="background: #8e44ad; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer;">
+          Download Bulk Loader CSV Template
+        </button>
+      </div>
+
+      <!-- Inventory Table Container -->
+      <div class="table-responsive" style="overflow-x: auto;">
+        <table id="inventory-table" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+          <thead>
+            <tr style="background: #f2f2f2; text-align: left; border-bottom: 2px solid #ddd;">
+              <th style="padding: 10px;">Card Name</th>
+              <th style="padding: 10px;">Set</th>
+              <th style="padding: 10px;">Condition</th>
+              <th style="padding: 10px;">Price</th>
+              <th style="padding: 10px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="inventory-table-body">
+            <tr>
+              <td colspan="5" style="padding: 15px; text-align: center; color: #7f8c8d;">No collection data loaded. Import a CSV or use the scanner to add cards.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
-    <!-- Dynamic Set Selector (Populated with ALL valid printings, fixing single-set filtering bugs) -->
-    <div class="form-group" style="margin-top: 20px;">
-      <label for="card-set-selector">Select Card Edition / Printing Set:</label>
-      <select id="card-set-selector" class="form-control">
-        <option value="">Scan or search a card to view valid sets...</option>
-      </select>
+    <!-- SCANNER VIEW -->
+    <div id="view-scanner" class="view-section" style="display: none;">
+      <div class="scanner-action-panel">
+        <button id="toggle-scanner-btn" class="btn-primary">Start Live Scanner</button>
+        
+        <div id="scanner-container" style="display: none; position: relative; margin-top: 15px;">
+          <video id="live-card-stream" autoplay playsinline style="width: 100%; max-width: 500px; border-radius: 8px; border: 2px solid #333;"></video>
+          <div class="scan-overlay-guide" style="position: absolute; top: 10%; left: 10%; right: 10%; height: 20%; border: 2px dashed #00ffcc; pointer-events: none;">
+            <span style="color: #00ffcc; font-size: 12px; background: rgba(0,0,0,0.7); padding: 2px 6px;">Align Card Title Here</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dynamic Set Selector -->
+      <div class="form-group" style="margin-top: 20px;">
+        <label for="card-set-selector">Select Card Edition / Printing Set:</label>
+        <select id="card-set-selector" class="form-control" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
+          <option value="">Scan or search a card to view valid sets...</option>
+        </select>
+      </div>
     </div>
+
   </div>
 
-  <!-- Core Logic Engine Script -->
   <script src="app.js"></script>
 </body>
 </html>
