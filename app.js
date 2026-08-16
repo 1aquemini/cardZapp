@@ -1,5 +1,5 @@
 /**
- * Card Library Engine - Inventory, CSV Bulk Loader, and High-Accuracy Scanner
+ * Card Library & Inventory Engine - Fully Integrated
  */
 
 const CardApp = {
@@ -7,11 +7,13 @@ const CardApp = {
   isScanning: false,
   scanInterval: null,
   inventory: [],
+  filteredInventory: [],
 
   init() {
     this.bindUI();
     this.sanitizeTerminology();
-    console.log("Card Library & Inventory Manager initialized.");
+    this.loadSavedInventory();
+    console.log("Card Library & Inventory Manager initialized successfully.");
   },
 
   bindUI() {
@@ -51,7 +53,6 @@ const CardApp = {
     });
   },
 
-  // CSV Bulk Loader Template Download
   downloadBulkTemplate() {
     const csvContent = "data:text/csv;charset=utf-8,Card Name,Set Code,Condition,Quantity,Price\nMutavault,MOR,Near Mint,1,25.00\nBlack Lotus,LEA,Played,1,10000.00";
     const encodedUri = encodeURI(csvContent);
@@ -63,15 +64,31 @@ const CardApp = {
     document.body.removeChild(link);
   },
 
-  // Handle CSV Collection Import
+  exportCollectionCSV() {
+    if (this.inventory.length === 0) {
+      alert("No inventory data available to export.");
+      return;
+    }
+    let csvContent = "Card Name,Set,Condition,Quantity,Price\n";
+    this.inventory.forEach(item => {
+      csvContent += `"${item.name}","${item.set}","${item.condition}","${item.quantity}","${item.price}"\n`;
+    });
+    const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "my_card_collection_export.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  },
+
   handleCSVImport(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target.result;
-      this.parseCSV(text);
+      this.parseCSV(e.target.result);
     };
     reader.readAsText(file);
   },
@@ -86,14 +103,43 @@ const CardApp = {
       const cols = line.split(',');
       if (cols.length >= 2) {
         this.inventory.push({
-          name: cols[0]?.trim() || 'Unknown',
-          set: cols[1]?.trim() || 'N/A',
-          condition: cols[2]?.trim() || 'Near Mint',
-          quantity: cols[3]?.trim() || '1',
-          price: cols[4]?.trim() || '$0.00'
+          name: cols[0]?.replace(/"/g, '').trim() || 'Unknown',
+          set: cols[1]?.replace(/"/g, '').trim() || 'N/A',
+          condition: cols[2]?.replace(/"/g, '').trim() || 'Near Mint',
+          quantity: cols[3]?.replace(/"/g, '').trim() || '1',
+          price: cols[4]?.replace(/"/g, '').trim() || '$0.00'
         });
       }
     }
+    this.filteredInventory = [...this.inventory];
+    this.saveInventoryToStorage();
+    this.renderInventoryTable();
+  },
+
+  saveInventoryToStorage() {
+    localStorage.setItem('card_app_inventory', JSON.stringify(this.inventory));
+  },
+
+  loadSavedInventory() {
+    const saved = localStorage.getItem('card_app_inventory');
+    if (saved) {
+      try {
+        this.inventory = JSON.parse(saved);
+        this.filteredInventory = [...this.inventory];
+        this.renderInventoryTable();
+      } catch (e) {
+        console.error("Failed to load local inventory storage", e);
+      }
+    }
+  },
+
+  filterInventory() {
+    const searchInput = document.getElementById('inventory-search-input');
+    if (!searchInput) return;
+    const query = searchInput.value.toLowerCase();
+    this.filteredInventory = this.inventory.filter(item => 
+      item.name.toLowerCase().includes(query) || item.set.toLowerCase().includes(query)
+    );
     this.renderInventoryTable();
   },
 
@@ -101,13 +147,13 @@ const CardApp = {
     const tbody = document.getElementById('inventory-table-body');
     if (!tbody) return;
 
-    if (this.inventory.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="padding: 15px; text-align: center; color: #7f8c8d;">No records found in CSV.</td></tr>`;
+    if (this.filteredInventory.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding: 15px; text-align: center; color: #7f8c8d;">No matching inventory records found.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = '';
-    this.inventory.forEach(item => {
+    this.filteredInventory.forEach(item => {
       const tr = document.createElement('tr');
       tr.style.borderBottom = '1px solid #eee';
       tr.innerHTML = `
@@ -115,13 +161,12 @@ const CardApp = {
         <td style="padding: 10px;">${item.set}</td>
         <td style="padding: 10px;">${item.condition}</td>
         <td style="padding: 10px;">${item.price}</td>
-        <td style="padding: 10px;"><button onclick="alert('Item details')" style="padding: 4px 8px;">View</button></td>
+        <td style="padding: 10px;"><button onclick="alert('Viewing details for ${item.name}')" style="padding: 4px 8px; cursor: pointer;">View</button></td>
       `;
       tbody.appendChild(tr);
     });
   },
 
-  // Real-Time Stream Scanner & Top-Banner Spatial Priority
   async toggleLiveScanner() {
     const videoElement = document.getElementById('live-card-stream');
     const container = document.getElementById('scanner-container');
@@ -145,7 +190,7 @@ const CardApp = {
       }
     } catch (err) {
       console.error("Camera access error:", err);
-      alert("Unable to access camera.");
+      alert("Unable to access camera feed.");
     }
   },
 
@@ -170,7 +215,7 @@ const CardApp = {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Spatial Top-Banner Crop (Ignores footers and flavor text)
+    // Spatial Top-Banner Crop (Prioritizes title area, ignoring footers/rules text)
     const titleHeaderHeight = canvas.height * 0.22;
     const titleCanvas = document.createElement('canvas');
     titleCanvas.width = canvas.width;
@@ -178,10 +223,27 @@ const CardApp = {
     const titleCtx = titleCanvas.getContext('2d');
     titleCtx.drawImage(canvas, 0, 0, canvas.width, titleHeaderHeight, 0, 0, canvas.width, titleHeaderHeight);
 
+    // Client-Side Image Preprocessing (Grayscale + Contrast Boost)
+    const imgData = titleCtx.getImageData(0, 0, titleCanvas.width, titleCanvas.height);
+    const data = imgData.data;
+    const contrastFactor = 1.5;
+    
+    for (let i = 0; i < data.length; i += 4) {
+      let avg = (data[i] * 0.3) + (data[i + 1] * 0.59) + (data[i + 2] * 0.11);
+      let adjusted = data[i];
+      if (avg > 0) {
+        adjusted = Math.min(255, Math.max(0, contrastFactor * (avg - 128) + 128));
+      }
+      data[i] = adjusted;
+      data[i + 1] = adjusted;
+      data[i + 2] = adjusted;
+    }
+    titleCtx.putImageData(imgData, 0, 0);
+
     titleCanvas.toBlob(async (blob) => {
       if (!blob) return;
       await this.executeOCRAndFetchCard(blob);
-    }, 'image/jpeg', 0.85);
+    }, 'image/jpeg', 0.90);
   },
 
   async executeOCRAndFetchCard(imageBlob) {
@@ -192,6 +254,19 @@ const CardApp = {
   },
 
   async fetchCardPrintingsAcrossAllSets(cardName) {
+    const cacheKey = `card_cache_${cardName.toLowerCase()}`;
+    const cachedData = localStorage.getItem(cacheKey);
+
+    if (cachedData) {
+      try {
+        const sortedSets = JSON.parse(cachedData);
+        this.renderCardSetOptions(sortedSets);
+        return;
+      } catch (e) {
+        localStorage.removeItem(cacheKey);
+      }
+    }
+
     try {
       const encodedName = encodeURIComponent(cardName);
       const response = await fetch(`https://api.scryfall.com/cards/search?q=${encodedName}&unique=prints`);
@@ -199,10 +274,11 @@ const CardApp = {
 
       if (data && data.data) {
         const sortedSets = data.data.sort((a, b) => new Date(b.released_at) - new Date(a.released_at));
+        localStorage.setItem(cacheKey, JSON.stringify(sortedSets));
         this.renderCardSetOptions(sortedSets);
       }
     } catch (err) {
-      console.error("Failed to fetch card printings:", err);
+      console.error("Failed to fetch card printings from database:", err);
     }
   },
 
