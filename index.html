@@ -384,8 +384,19 @@
   <!-- ============ FOR-SALE ARCHIVE TAB ============ -->
   <section id="tab-forsale" class="tab-content" style="display:none;">
     <div class="panel">
-      <h2>For-Sale archive (legacy import, read-only)</h2>
-      <p class="sub">Loaded from <span class="mono">data/ygo_for_sale_inventory.csv</span> — treated as ground truth and not re-derived. Asking prices, not graded valuations.</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+        <div>
+          <h2 style="margin-bottom:2px;">For-Sale archive</h2>
+          <p class="sub" style="margin:0;">Your own archive, imported by you. Stored only in this browser — nobody else who opens this app sees it, and nothing loads here automatically.</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <label class="btn ghost sm" for="importForSaleCsv">Import CSV</label>
+          <input id="importForSaleCsv" type="file" accept=".csv,text/csv" />
+          <button class="btn ghost sm" id="exportForSaleCsvBtn" type="button">Export CSV</button>
+          <button class="btn danger sm" id="clearForSaleBtn" type="button">Clear</button>
+        </div>
+      </div>
+      <p class="sub">Expected columns: <span class="mono">Name, Price, Quantity, Total</span> (extra columns are ignored).</p>
       <input class="search" type="text" id="forSaleSearch" placeholder="Search archive..." />
       <div class="table-scroll">
         <table id="forSaleTable">
@@ -393,7 +404,7 @@
           <tbody id="forSaleBody"></tbody>
         </table>
       </div>
-      <div id="forSaleEmpty" class="empty" style="display:none;">Archive file not found or empty.</div>
+      <div id="forSaleEmpty" class="empty" style="display:none;">No archive imported yet. Tap <strong>Import CSV</strong> above to load your own for-sale listings.</div>
     </div>
   </section>
 
@@ -938,19 +949,23 @@
   });
 
   /* ============================================================
-     FOR-SALE ARCHIVE (read-only, bundled ground-truth CSV)
+     FOR-SALE ARCHIVE — per-user, localStorage-backed.
+     Nothing is bundled or auto-loaded for any visitor; each person
+     imports their own CSV, stored only in their own browser, exactly
+     like the Collection tab.
   ============================================================ */
+  const FORSALE_STORAGE_KEY = 'cardLedgerForSaleArchive_v1';
+  const FORSALE_COLUMNS = ['Name','Price','Quantity','Total'];
   let forSaleArchive = [];
-  async function loadForSaleArchive(){
+  function loadForSaleArchive(){
     try{
-      const res = await fetch('./data/ygo_for_sale_inventory.csv');
-      if(!res.ok) throw new Error('not found');
-      const text = await res.text();
-      forSaleArchive = rowsToObjects(parseCSV(text));
-    }catch(e){
-      console.warn('For-sale archive not loaded', e);
-      forSaleArchive = [];
-    }
+      const raw = localStorage.getItem(FORSALE_STORAGE_KEY);
+      forSaleArchive = raw ? JSON.parse(raw) : [];
+    }catch(e){ console.error('Load failed', e); forSaleArchive = []; }
+  }
+  function saveForSaleArchive(){
+    try{ localStorage.setItem(FORSALE_STORAGE_KEY, JSON.stringify(forSaleArchive)); return true; }
+    catch(e){ console.error('Save failed', e); return false; }
   }
   function renderForSale(filter){
     filter = (filter || document.getElementById('forSaleSearch').value || '').toLowerCase();
@@ -965,6 +980,40 @@
     });
   }
   document.getElementById('forSaleSearch').addEventListener('input', () => renderForSale());
+
+  document.getElementById('importForSaleCsv').addEventListener('change', e => {
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const objs = rowsToObjects(parseCSV(ev.target.result));
+      forSaleArchive = objs.map(o => ({ Name:o.Name||'', Price:o.Price||'', Quantity:o.Quantity||'', Total:o.Total||'' }));
+      saveForSaleArchive();
+      renderForSale();
+      alert('Imported ' + forSaleArchive.length + ' row(s) into your local archive.');
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  document.getElementById('exportForSaleCsvBtn').addEventListener('click', () => {
+    if(!forSaleArchive.length){ alert('No archive rows to export.'); return; }
+    const rows = forSaleArchive.map(r => FORSALE_COLUMNS.map(c => csvEscape(r[c])).join(','));
+    const csv = [FORSALE_COLUMNS.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'for_sale_archive.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('clearForSaleBtn').addEventListener('click', () => {
+    if(!confirm('Clear your imported for-sale archive? This cannot be undone.')) return;
+    forSaleArchive = [];
+    saveForSaleArchive();
+    renderForSale();
+  });
 
   /* ============================================================
      SELF-TESTS (pure-function, no camera/network required)
@@ -1024,6 +1073,26 @@
       // 10. escapeHtml neutralizes markup (no injection via card name)
       assert('escapeHtml neutralizes angle brackets', escapeHtml('<scr' + 'ipt>x<' + '/scr' + 'ipt>') === '&lt;script&gt;x&lt;/script&gt;');
 
+      // 11. For-Sale archive is empty by default (never auto-populated for a new user)
+      const savedForSale = forSaleArchive.slice();
+      const savedForSaleLS = localStorage.getItem(FORSALE_STORAGE_KEY);
+      localStorage.removeItem(FORSALE_STORAGE_KEY);
+      loadForSaleArchive();
+      assert('For-Sale archive starts empty for a fresh browser (per-user, not bundled)', forSaleArchive.length === 0);
+
+      // 12. For-Sale archive import/export round-trip, isolated from the Collection store
+      forSaleArchive = [{ Name:'Test Listing', Price:'12.50', Quantity:'2', Total:'25.00' }];
+      saveForSaleArchive();
+      const fsCsvLine = FORSALE_COLUMNS.map(c => csvEscape(forSaleArchive[0][c])).join(',');
+      const fsParsedBack = rowsToObjects(parseCSV(FORSALE_COLUMNS.join(',') + '\n' + fsCsvLine))[0];
+      assert('For-Sale CSV round-trip preserves Name and Price', fsParsedBack.Name === 'Test Listing' && fsParsedBack.Price === '12.50');
+      assert('For-Sale archive storage key is distinct from Collection storage key', FORSALE_STORAGE_KEY !== STORAGE_KEY);
+
+      // restore for-sale state
+      forSaleArchive = savedForSale;
+      if(savedForSaleLS !== null) localStorage.setItem(FORSALE_STORAGE_KEY, savedForSaleLS); else localStorage.removeItem(FORSALE_STORAGE_KEY);
+      renderForSale();
+
     } finally {
       // restore real state
       collection = savedCollection;
@@ -1042,7 +1111,7 @@
      INIT
   ============================================================ */
   loadCollection();
-  loadForSaleArchive().then(() => { if(document.getElementById('tab-forsale').style.display !== 'none') renderForSale(); });
+  loadForSaleArchive();
   if(location.search.includes('test=1')){
     document.querySelector('.tab-btn[data-tab="about"]').click();
     setTimeout(runSelfTests, 300);

@@ -59,7 +59,27 @@ collection" without reusing anyone's mark.
 ## Data
 
 - `ygo_for_sale_inventory.csv` carried over unchanged as ground truth (711
-  listings), shown read-only on the "For-Sale Archive" tab.
+  listings). It is **not** auto-loaded by the app — see "Multi-user
+  isolation" below.
 - Magic and Pokémon inventory data was not present in either source repo —
   nothing was assumed or fabricated. Add cards for those games through the
   normal Scan & Add flow going forward.
+
+## Multi-user isolation (For-Sale Archive)
+
+The Collection tab was always per-browser via `localStorage`, so two
+people using the same deployed link already get fully separate
+collections with no code change needed. The For-Sale Archive tab
+originally didn't follow that pattern — it `fetch()`ed
+`data/ygo_for_sale_inventory.csv` directly out of the public repo on
+every page load, so *every visitor*, not just the owner, saw the owner's
+711 listings. That's fine for a single-user tool, but breaks down the
+moment the link is shared: anyone opening it would see someone else's
+private sale inventory and pricing by default.
+
+**Decision:** the archive is now `localStorage`-backed per-user, exactly
+like the Collection tab — empty on first load, populated only via an
+explicit **Import CSV** action, with matching **Export CSV** and **Clear**
+controls. `ygo_for_sale_inventory.csv` stays in the repo as the source
+file; the owner (or anyone) loads it in by importing it themselves through
+the same control everyone else uses for their own file.

@@ -47,9 +47,15 @@ suggestion.
 - **Export CSV** / **Import CSV** on the Collection tab is how you back up
   or move data between devices — the column layout matches
   [`docs/SCHEMA_REFERENCE.md`](docs/SCHEMA_REFERENCE.md).
-- `data/ygo_for_sale_inventory.csv` is bundled as a **read-only reference
-  archive** (711 listings / legacy asking-price data) — shown on the
-  "For-Sale Archive" tab, never modified by the app.
+- The **For-Sale Archive** tab works the same way: empty by default for
+  every visitor, populated only when *they* tap Import CSV and choose a
+  file. Nothing is bundled or auto-loaded — if you share this app's link
+  with someone else, they get their own empty archive, not yours.
+  `data/ygo_for_sale_inventory.csv` in this repo is the source file for
+  the owner's own 711-listing archive; import it yourself from the
+  For-Sale Archive tab to load it into your own browser's storage the
+  same way anyone else would import theirs. Expected columns: `Name,
+  Price, Quantity, Total`.
 
 ## Deploying it (pick one — both are free)
 
