@@ -12,7 +12,7 @@
   <div class="card-manager-wrapper">
     <header>
       <h2>Card Database Search & Inventory</h2>
-      <p>Lookup card details, manage your collection, and import inventories seamlessly.</p>
+      <p>Lookup card details, manage your collection, and import/export inventories seamlessly.</p>
     </header>
 
     <!-- Navigation / View Tabs -->
@@ -23,16 +23,26 @@
 
     <!-- COLLECTION VIEW -->
     <div id="view-collection" class="view-section">
-      <div class="inventory-controls" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+      <div class="inventory-controls" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
         <!-- CSV Import -->
         <label class="btn-primary" style="cursor: pointer; display: inline-block; padding: 10px 15px; background: #27ae60; color: white; border-radius: 6px;">
           Import CSV Collection <input type="file" id="csv-file-input" accept=".csv" style="display: none;" onchange="CardApp.handleCSVImport(event)">
         </label>
         
+        <!-- Export CSV Collection -->
+        <button onclick="CardApp.exportCollectionCSV()" class="btn-primary" style="background: #2980b9; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer;">
+          Export to CSV
+        </button>
+
         <!-- Bulk Loader Template Download -->
         <button onclick="CardApp.downloadBulkTemplate()" class="btn-primary" style="background: #8e44ad; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer;">
           Download Bulk Loader CSV Template
         </button>
+      </div>
+
+      <!-- Real-Time Collection Search Input -->
+      <div style="margin-bottom: 15px;">
+        <input type="text" id="inventory-search-input" placeholder="Search collection by name or set..." onkeyup="CardApp.filterInventory()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
       </div>
 
       <!-- Inventory Table Container -->
