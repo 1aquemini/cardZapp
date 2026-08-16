@@ -1,0 +1,69 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f4f7f6;
+  color: #333;
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.card-manager-wrapper {
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  max-width: 600px;
+}
+
+header h2 {
+  margin-top: 0;
+  color: #2c3e50;
+  font-size: 24px;
+}
+
+header p {
+  color: #7f8c8d;
+  font-size: 14px;
+  margin-bottom: 25px;
+}
+
+.scanner-action-panel {
+  margin-bottom: 20px;
+}
+
+.btn-primary {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: #2980b9;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #34495e;
+}
+
+.form-control {
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #fff;
+}
