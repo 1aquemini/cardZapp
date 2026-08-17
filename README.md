@@ -18,17 +18,22 @@ further to buy or submit for review.
    right free card database.
 2. **Take or upload a photo.** OCR runs on-device via Tesseract.js — no
    image is uploaded anywhere.
-3. **Confirm the identification.** The app suggests matches from a free
-   public card database (Scryfall for Magic, pokemontcg.io for Pokémon,
-   YGOPRODeck for Yu-Gi-Oh), but **nothing is logged automatically.** You
-   pick the right match or type it in yourself.
+3. **Confirm the identification.** As you type, matches appear live from a
+   free public card database (Scryfall for Magic, pokemontcg.io for
+   Pokémon, YGOPRODeck for Yu-Gi-Oh) — no need to finish typing or tap
+   search first. Each match shows a thumbnail so you're confirming by
+   sight, not just text. **Nothing is logged automatically** — you pick
+   the right match or type it in yourself. Selecting a match also
+   populates the Set field with real matching sets to choose from.
 4. **Print type is always a manual choice** — Normal / Foil / Holo /
    Reverse Holo / 1st Edition / Promo. Foil can't be reliably detected
    from a flat photo, and foil/normal prices differ substantially, so this
    is never inferred for you.
 5. **Condition** is a self-assessed estimate against the tiers in
    [`docs/GRADING_REFERENCE.md`](docs/GRADING_REFERENCE.md) — always a
-   photo-based estimate, never a certified grade.
+   photo-based estimate, never a certified grade. If the card is
+   professionally graded (PSA/BGS/CGC/etc.), there's a separate optional
+   field for that instead of forcing it into the raw-condition scale.
 6. **Pricing** is link-out only: buttons open pre-filled searches on
    TCGplayer, eBay sold listings, and StarCityGames. Nothing is
    auto-fetched or auto-refreshed — you look, you decide the value.
@@ -39,6 +44,11 @@ This order is intentional: a misidentified card inflates collection value
 and breaks the point of tracking it, so confirmation is a hard gate in the
 code (see `validateBeforeLog` / `addToCollection` in `index.html`), not a
 suggestion.
+
+Confirming a card that exactly matches one already logged (same name, set,
+print type, and condition tier) increases that row's quantity instead of
+creating a duplicate row — a second copy of a card you already have won't
+fork your collection into near-identical entries.
 
 ## Data & storage
 
@@ -102,7 +112,7 @@ index.html                     the entire app
 manifest.json                  PWA manifest
 apple-touch-icon.png           iOS home-screen icon
 icons/                         192 / 512 / maskable PWA icons
-data/ygo_for_sale_inventory.csv   read-only ground-truth archive
+data/ygo_for_sale_inventory.csv   owner's source file — import via the For-Sale Archive tab
 docs/GRADING_REFERENCE.md      condition/grading tiers
 docs/SCHEMA_REFERENCE.md       cards.csv column definitions
 docs/MERGE_NOTES.md            what changed when this repo was consolidated
