@@ -1,95 +1,1458 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Card Library & Inventory Manager</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Card Ledger — Scan, Confirm, Track</title>
+
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Card Ledger">
+<meta name="theme-color" content="#0D111F">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink-900:#0D111F;
+    --ink-800:#141A30;
+    --ink-700:#1C2440;
+    --ink-600:#262f52;
+    --brass:#C9A24B;
+    --brass-light:#E8CC7F;
+    --garnet:#A23349;
+    --garnet-light:#c9536c;
+    --verdigris:#3B8570;
+    --verdigris-light:#54ad93;
+    --amethyst:#6E4AA3;
+    --amethyst-light:#9271c9;
+    --parchment:#EDE3C7;
+    --muted:#8B93A8;
+    --danger:#c9536c;
+    --radius:14px;
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 50% -10%, #1C2440 0%, #0D111F 55%),
+      var(--ink-900);
+    color:var(--parchment);
+    font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:calc(48px + env(safe-area-inset-bottom, 0px));
+  }
+  h1,h2,h3,.display{font-family:'Fraunces',Georgia,serif;}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+  .wrap{max-width:1040px;margin:0 auto;padding:20px 18px 8px;}
+  a{color:var(--brass-light);}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+  :focus-visible{outline:2px solid var(--brass);outline-offset:2px;}
+
+  /* ---- Sticky app chrome ---- */
+  .sticky-chrome{
+    position:sticky;top:0;z-index:20;
+    padding-top:calc(10px + env(safe-area-inset-top, 0px));
+    margin:-10px -18px 0;padding-left:18px;padding-right:18px;
+    background:linear-gradient(180deg, var(--ink-900) 82%, rgba(13,17,31,0));
+  }
+  @supports not (backdrop-filter: blur(1px)){ .sticky-chrome{ background:var(--ink-900); } }
+
+  /* ---- Toasts ---- */
+  #toastHost{
+    position:fixed;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom, 0px));
+    display:flex;flex-direction:column;align-items:center;gap:8px;z-index:100;pointer-events:none;
+  }
+  .toast{
+    max-width:min(420px, 92vw);padding:11px 18px;border-radius:999px;
+    background:linear-gradient(160deg, var(--ink-700), var(--ink-800));
+    border:1px solid rgba(201,162,75,0.4);color:var(--parchment);font-size:13.5px;font-weight:600;
+    box-shadow:0 10px 26px rgba(0,0,0,0.5);
+    animation:toastIn .25s ease-out;
+  }
+  .toast.err{border-color:rgba(201,83,108,0.6);}
+  @keyframes toastIn{ from{ transform:translateY(8px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+
+  /* ---- Quickstart / step guide ---- */
+  .quickstart{
+    background:linear-gradient(160deg, rgba(110,74,163,0.14), rgba(59,133,112,0.08));
+    border:1px solid rgba(201,162,75,0.3);border-radius:var(--radius);padding:18px;margin-bottom:14px;
+  }
+  .quickstart h2{margin:0 0 10px;font-size:16px;}
+  .qs-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;}
+  @media (max-width:720px){ .qs-steps{grid-template-columns:1fr 1fr;} }
+  .qs-step{background:rgba(0,0,0,0.18);border-radius:10px;padding:10px 12px;}
+  .qs-step .num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--brass);color:#241a05;font-size:11px;font-weight:700;margin-bottom:6px;}
+  .qs-step .t{font-size:12.5px;font-weight:700;color:var(--parchment);}
+  .qs-step .d{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.4;}
+  .quickstart .dismiss-row{display:flex;justify-content:flex-end;}
+
+  .help-btn{
+    width:34px;height:34px;border-radius:50%;border:1px solid rgba(201,162,75,0.4);
+    background:rgba(255,255,255,0.03);color:var(--brass-light);font-weight:700;font-size:14px;
+    cursor:pointer;flex-shrink:0;
+  }
+  header.plate > div:nth-child(2){min-width:0;}
+
+  /* ---- Live progress indicator within Scan & Add ---- */
+  .step-progress{display:flex;align-items:center;gap:6px;margin-bottom:16px;}
+  .step-dot{
+    flex:1;height:4px;border-radius:99px;background:rgba(255,255,255,0.08);position:relative;overflow:hidden;
+  }
+  .step-dot.done{background:var(--verdigris);}
+  .step-dot.current{background:linear-gradient(90deg, var(--brass), rgba(255,255,255,0.08) 50%);}
+  .step-progress-labels{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);margin:-10px 0 14px;text-transform:uppercase;letter-spacing:0.3px;}
+  .step-progress-labels span.active{color:var(--brass-light);font-weight:700;}
+
+  /* ---- Desktop two-column scan layout ---- */
+  .scan-grid{display:block;}
+  @media (min-width:940px){
+    .scan-grid{display:grid;grid-template-columns:1fr 380px;gap:16px;align-items:start;}
+    .scan-grid .scan-col-right{position:sticky;top:96px;}
+  }
+
+  /* ---- Header / ledger plate ---- */
+  header.plate{
+    display:flex;align-items:center;gap:16px;
+    padding:18px 20px;border-radius:var(--radius);
+    background:linear-gradient(160deg, var(--ink-800), var(--ink-900));
+    border:1px solid rgba(201,162,75,0.25);
+    box-shadow:0 10px 30px rgba(0,0,0,0.45);
+    margin-bottom:16px;
+  }
+  .plate-seal{
+    width:52px;height:52px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--amethyst-light), var(--amethyst) 70%);
+    border:2px solid var(--brass);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    box-shadow:0 4px 14px rgba(0,0,0,0.4);
+  }
+  .plate-seal svg{width:26px;height:26px;}
+  header.plate h1{margin:0;font-size:22px;font-weight:600;letter-spacing:0.2px;color:var(--parchment);}
+  header.plate p{margin:2px 0 0;color:var(--muted);font-size:13px;}
+
+  /* ---- Tabs ---- */
+  nav.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid rgba(201,162,75,0.18);overflow-x:auto;}
+  nav.tabs button{
+    background:none;border:none;color:var(--muted);font-family:'Inter';font-weight:600;font-size:13px;
+    padding:11px 16px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;
+    transition:color .15s ease, border-color .15s ease;
+  }
+  nav.tabs button.active{color:var(--brass-light);border-bottom-color:var(--brass);}
+  nav.tabs button:hover:not(.active){color:var(--parchment);}
+
+  .panel{
+    background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);
+    border-radius:var(--radius);padding:18px;margin-bottom:14px;
+  }
+  .panel h2{font-size:16px;margin:0 0 4px;color:var(--parchment);font-weight:600;}
+  .panel .sub{color:var(--muted);font-size:12.5px;margin:0 0 14px;}
+
+  .btn{
+    background:var(--amethyst);border:1px solid rgba(255,255,255,0.08);color:#fff;
+    padding:10px 16px;border-radius:10px;font-weight:600;font-size:13.5px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;transition:filter .15s ease, transform .05s ease;
+    font-family:'Inter';
+  }
+  .btn:hover{filter:brightness(1.12);}
+  .btn:active{transform:translateY(1px);}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;filter:none;}
+  .btn.brass{background:linear-gradient(160deg,var(--brass-light),var(--brass));color:#241a05;}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.14);color:var(--muted);}
+  .btn.ghost:hover{color:var(--parchment);border-color:rgba(255,255,255,0.3);}
+  .btn.danger{background:var(--danger);}
+  .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px;}
+  .btn.block{width:100%;justify-content:center;}
+
+  label.field-label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 6px;text-transform:uppercase;letter-spacing:0.4px;}
+  input[type=text], input[type=number], input[type=date], select, textarea{
+    width:100%;padding:11px;border-radius:9px;border:1px solid rgba(255,255,255,0.12);
+    background:rgba(255,255,255,0.03);color:var(--parchment);font-family:'Inter';font-size:16px;
+  }
+  input:focus, select:focus, textarea:focus{outline:2px solid var(--brass);outline-offset:1px;border-color:var(--brass);}
+  input[type="file"]{display:none;}
+  .field{margin-bottom:12px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media (max-width:600px){.grid2{grid-template-columns:1fr;}}
+
+  /* ---- Game selector chips ---- */
+  .game-chips{display:flex;gap:8px;flex-wrap:wrap;}
+  .game-chip{
+    padding:9px 14px;border-radius:999px;border:1.5px solid rgba(255,255,255,0.14);
+    background:rgba(255,255,255,0.03);color:var(--muted);font-weight:600;font-size:13px;cursor:pointer;
+  }
+  .game-chip[data-game="mtg"].active{border-color:var(--verdigris);color:var(--verdigris-light);background:rgba(59,133,112,0.14);}
+  .game-chip[data-game="pokemon"].active{border-color:var(--amethyst);color:var(--amethyst-light);background:rgba(110,74,163,0.14);}
+  .game-chip[data-game="ygo"].active{border-color:var(--garnet);color:var(--garnet-light);background:rgba(162,51,73,0.14);}
+
+  /* ---- Camera / photo capture ---- */
+  .capture-zone{
+    border:2px dashed rgba(201,162,75,0.35);border-radius:12px;padding:26px;text-align:center;cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .capture-zone:hover{border-color:var(--brass);background:rgba(201,162,75,0.05);}
+  .capture-zone svg{width:34px;height:34px;color:var(--brass);margin-bottom:8px;}
+  .capture-zone .cta{font-weight:600;color:var(--parchment);font-size:14px;}
+  .capture-zone .hint{color:var(--muted);font-size:12px;margin-top:4px;}
+  .preview-wrap{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;}
+  .preview-wrap img{width:150px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);}
+
+  /* ---- Confidence dial (signature element) ---- */
+  .dial{position:relative;width:84px;height:84px;flex-shrink:0;}
+  .dial svg{transform:rotate(-90deg);}
+  .dial-track{fill:none;stroke:rgba(255,255,255,0.08);stroke-width:8;}
+  .dial-fill{fill:none;stroke:url(#dialGrad);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .6s ease;}
+  .dial-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono';font-size:14px;font-weight:600;color:var(--brass-light);}
+
+  .candidate-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;max-height:420px;overflow-y:auto;padding-right:2px;}
+  .candidate{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:11px 13px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.1);
+    background:rgba(255,255,255,0.02);cursor:pointer;
+  }
+  .candidate:hover{border-color:rgba(201,162,75,0.5);}
+  .candidate.selected{border-color:var(--brass);background:rgba(201,162,75,0.09);}
+  .candidate .name{font-weight:600;font-size:14px;}
+  .candidate .meta{color:var(--muted);font-size:12px;}
+  .candidate .source-tag{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;margin-top:2px;}
+  .candidate-thumb{width:36px;height:50px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);}
+  .candidate-thumb-empty{background:linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));}
+
+  .confirm-banner{
+    display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;
+    background:rgba(201,162,75,0.08);border:1px solid rgba(201,162,75,0.3);color:var(--brass-light);
+    font-size:13px;font-weight:600;margin-bottom:14px;
+  }
+  .price-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+  .price-links a{
+    color:var(--parchment);text-decoration:none;font-size:12.5px;font-weight:600;
+    padding:7px 12px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+  }
+  .price-links a:hover{border-color:var(--brass);}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{padding:9px 8px;border-bottom:1px solid rgba(255,255,255,0.06);text-align:left;vertical-align:top;}
+  th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.3px;}
+  td.num, th.num{font-family:'IBM Plex Mono';}
+  .row-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .table-scroll{max-height:480px;overflow:auto;border-radius:8px;}
+  .empty{padding:26px;border-radius:10px;background:rgba(255,255,255,0.02);text-align:center;color:var(--muted);font-size:13.5px;}
+  .search{margin-bottom:12px;}
+  .tag{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;}
+  .tag.mtg{background:rgba(59,133,112,0.18);color:var(--verdigris-light);}
+  .tag.pokemon{background:rgba(110,74,163,0.18);color:var(--amethyst-light);}
+  .tag.ygo{background:rgba(162,51,73,0.18);color:var(--garnet-light);}
+  .tag.print{background:rgba(255,255,255,0.08);color:var(--parchment);}
+
+  details.dev{margin-top:24px;}
+  details.dev summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:600;}
+  #testLog{white-space:pre-wrap;font-size:12px;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;margin-top:10px;max-height:280px;overflow:auto;}
+  .pass{color:var(--verdigris-light);}
+  .fail{color:var(--garnet-light);}
+
+  footer{margin-top:20px;color:var(--muted);font-size:11.5px;text-align:center;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
 </head>
 <body>
-  <div class="card-manager-wrapper">
-    <header>
-      <h2>Card Database Search & Inventory</h2>
-      <p>Lookup card details, manage your collection, and import/export inventories seamlessly.</p>
+<div class="wrap">
+
+  <div class="sticky-chrome">
+    <header class="plate">
+      <div class="plate-seal">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="9" r="3.4" fill="#E8CC7F"/><path d="M6 21 L9.5 21 L11 11.5 L13 11.5 L14.5 21 L18 21 Z" fill="#E8CC7F" opacity="0.9"/></svg>
+      </div>
+      <div style="flex:1;">
+        <h1>Card Ledger</h1>
+        <p>Photo scan → confirm → price → log. Local-only storage. No accounts, no payments.</p>
+      </div>
+      <button class="help-btn" id="helpBtn" type="button" title="How to use this app" aria-label="How to use this app">?</button>
     </header>
 
-    <!-- Navigation / View Tabs -->
-    <nav class="app-nav" style="margin-bottom: 20px; display: flex; gap: 10px;">
-      <button id="tab-collection" class="btn-primary" onclick="CardApp.switchView('collection')">My Collection</button>
-      <button id="tab-scanner" class="btn-secondary" onclick="CardApp.switchView('scanner')" style="background: #7f8c8d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Live Scanner</button>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab-btn active" data-tab="scan" role="tab" aria-selected="true">Scan &amp; Add</button>
+      <button class="tab-btn" data-tab="collection" role="tab" aria-selected="false">Collection</button>
+      <button class="tab-btn" data-tab="forsale" role="tab" aria-selected="false">For-Sale Archive</button>
+      <button class="tab-btn" data-tab="about" role="tab" aria-selected="false">About / Docs</button>
     </nav>
+  </div>
 
-    <!-- COLLECTION VIEW -->
-    <div id="view-collection" class="view-section">
-      <div class="inventory-controls" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-        <!-- CSV Import -->
-        <label class="btn-primary" style="cursor: pointer; display: inline-block; padding: 10px 15px; background: #27ae60; color: white; border-radius: 6px;">
-          Import CSV Collection <input type="file" id="csv-file-input" accept=".csv" style="display: none;" onchange="CardApp.handleCSVImport(event)">
-        </label>
-        
-        <!-- Export CSV Collection -->
-        <button onclick="CardApp.exportCollectionCSV()" class="btn-primary" style="background: #2980b9; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer;">
-          Export to CSV
-        </button>
+  <div class="quickstart" id="quickstartPanel">
+    <h2>How this works — 4 steps, every time</h2>
+    <div class="qs-steps">
+      <div class="qs-step"><div class="num">1</div><div class="t">Pick the game</div><div class="d">Routes lookup to the right free card database.</div></div>
+      <div class="qs-step"><div class="num">2</div><div class="t">Photo</div><div class="d">On-device OCR reads it. Nothing is uploaded.</div></div>
+      <div class="qs-step"><div class="num">3</div><div class="t">Confirm &amp; classify</div><div class="d">You pick the real match, the print type, and the condition — never assumed for you.</div></div>
+      <div class="qs-step"><div class="num">4</div><div class="t">Price &amp; log</div><div class="d">Check comps, enter a value, then confirm to add it.</div></div>
+    </div>
+    <div class="dismiss-row">
+      <button class="btn ghost sm" id="dismissQuickstart" type="button">Got it, hide this</button>
+    </div>
+  </div>
 
-        <!-- Bulk Loader Template Download -->
-        <button onclick="CardApp.downloadBulkTemplate()" class="btn-primary" style="background: #8e44ad; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer;">
-          Download Bulk Loader CSV Template
-        </button>
-      </div>
+  <!-- ============ SCAN & ADD TAB ============ -->
+  <section id="tab-scan" class="tab-content">
+    <div class="step-progress" id="stepProgress" aria-hidden="true">
+      <div class="step-dot current" data-step="1"></div>
+      <div class="step-dot" data-step="2"></div>
+      <div class="step-dot" data-step="3"></div>
+      <div class="step-dot" data-step="4"></div>
+    </div>
+    <div class="step-progress-labels">
+      <span data-step-label="1" class="active">Game</span>
+      <span data-step-label="2">Photo</span>
+      <span data-step-label="3">Confirm</span>
+      <span data-step-label="4">Price &amp; log</span>
+    </div>
+    <div class="scan-grid">
+    <div class="scan-col-left">
 
-      <!-- Real-Time Collection Search Input -->
-      <div style="margin-bottom: 15px;">
-        <input type="text" id="inventory-search-input" placeholder="Search collection by name or set..." onkeyup="CardApp.filterInventory()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
-      </div>
-
-      <!-- Inventory Table Container -->
-      <div class="table-responsive" style="overflow-x: auto;">
-        <table id="inventory-table" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-          <thead>
-            <tr style="background: #f2f2f2; text-align: left; border-bottom: 2px solid #ddd;">
-              <th style="padding: 10px;">Card Name</th>
-              <th style="padding: 10px;">Set</th>
-              <th style="padding: 10px;">Condition</th>
-              <th style="padding: 10px;">Price</th>
-              <th style="padding: 10px;">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="inventory-table-body">
-            <tr>
-              <td colspan="5" style="padding: 15px; text-align: center; color: #7f8c8d;">No collection data loaded. Import a CSV or use the scanner to add cards.</td>
-            </tr>
-          </tbody>
-        </table>
+    <div class="panel">
+      <h2>1. Choose game</h2>
+      <p class="sub">Routes lookup to the right free card database (Scryfall / Pokémon TCG / YGOPRODeck).</p>
+      <div class="game-chips" id="gameChips">
+        <button type="button" class="game-chip" data-game="mtg">Magic: The Gathering</button>
+        <button type="button" class="game-chip" data-game="pokemon">Pokémon</button>
+        <button type="button" class="game-chip" data-game="ygo">Yu-Gi-Oh!</button>
       </div>
     </div>
 
-    <!-- SCANNER VIEW -->
-    <div id="view-scanner" class="view-section" style="display: none;">
-      <div class="scanner-action-panel">
-        <button id="toggle-scanner-btn" class="btn-primary">Start Live Scanner</button>
-        
-        <div id="scanner-container" style="display: none; position: relative; margin-top: 15px;">
-          <video id="live-card-stream" autoplay playsinline style="width: 100%; max-width: 500px; border-radius: 8px; border: 2px solid #333;"></video>
-          <div class="scan-overlay-guide" style="position: absolute; top: 10%; left: 10%; right: 10%; height: 20%; border: 2px dashed #00ffcc; pointer-events: none;">
-            <span style="color: #00ffcc; font-size: 12px; background: rgba(0,0,0,0.7); padding: 2px 6px;">Align Card Title Here</span>
+    <div class="panel">
+      <h2>2. Photo</h2>
+      <p class="sub">Front of the card, well lit, flat. Runs OCR locally in your browser — nothing is uploaded except the free lookup query text.</p>
+      <ul style="margin:0 0 12px;padding-left:18px;color:var(--muted);font-size:12px;line-height:1.6;">
+        <li>Remove the card from its sleeve/toploader first — plastic causes glare that trips up OCR</li>
+        <li>Plain, neutral background; even lighting with no direct glare across the card face</li>
+        <li>Fill the frame with the card, held flat and steady (not at an angle)</li>
+      </ul>
+      <label class="capture-zone" for="cardPhotoInput" id="captureZone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8a2 2 0 0 1 2-2h1.2l.9-1.4A1.5 1.5 0 0 1 9.4 4h5.2a1.5 1.5 0 0 1 1.3.75L16.8 6H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><circle cx="12" cy="13" r="3.4"/></svg>
+        <div class="cta">Take or upload a photo</div>
+        <div class="hint">Opens your camera on phone · file picker on desktop</div>
+      </label>
+      <input id="cardPhotoInput" type="file" accept="image/*" capture="environment" />
+      <div id="photoPreviewArea" style="margin-top:14px;display:none;">
+        <div class="preview-wrap">
+          <img id="photoPreviewImg" alt="Card photo preview" />
+          <div style="flex:1;min-width:200px;">
+            <div id="ocrStatus" class="sub" role="status" aria-live="polite" style="margin:0 0 8px;">—</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <div class="dial" id="confDial" style="display:none;">
+                <svg viewBox="0 0 84 84" width="84" height="84">
+                  <defs><linearGradient id="dialGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#A23349"/><stop offset="50%" stop-color="#C9A24B"/><stop offset="100%" stop-color="#3B8570"/>
+                  </linearGradient></defs>
+                  <circle class="dial-track" cx="42" cy="42" r="36"/>
+                  <circle class="dial-fill" id="dialFill" cx="42" cy="42" r="36" stroke-dasharray="226" stroke-dashoffset="226"/>
+                </svg>
+                <div class="dial-label" id="dialLabel">—</div>
+              </div>
+              <button class="btn ghost sm" id="retakeBtn" type="button">Retake photo</button>
+            </div>
           </div>
         </div>
       </div>
-
-      <!-- Dynamic Set Selector -->
-      <div class="form-group" style="margin-top: 20px;">
-        <label for="card-set-selector">Select Card Edition / Printing Set:</label>
-        <select id="card-set-selector" class="form-control" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
-          <option value="">Scan or search a card to view valid sets...</option>
-        </select>
-      </div>
     </div>
 
-  </div>
+    <div class="panel" id="candidatesPanel" style="display:none;">
+      <h2>3. Confirm identification</h2>
+      <p class="sub">Pick the correct match, or enter the card manually if lookup missed it. Nothing is logged until you confirm below.</p>
+      <div class="field">
+        <label class="field-label" for="manualNameInput">Card name (edit freely — OCR is a starting guess, not a fact)</label>
+        <input type="text" id="manualNameInput" placeholder="e.g. Blue-Eyes White Dragon" />
+        <button class="btn ghost sm" id="lookupBtn" type="button" style="margin-top:8px;">Search this name</button>
+      </div>
+      <div class="candidate-list" id="candidateList"></div>
+    </div>
+    </div><!-- /.scan-col-left -->
 
-  <script src="app.js"></script>
+    <div class="scan-col-right">
+    <div class="panel" id="confirmPanel" style="display:none;">
+      <h2>4. Print type, condition &amp; pricing</h2>
+      <p class="sub">Print type is always a manual choice — foil/holo can't be reliably detected from a flat photo, and mismatching print type to price inflates value. Condition is a self-assessed estimate, not a certified grade.</p>
+
+      <div class="grid2">
+        <div class="field">
+          <label class="field-label" for="setNameInput">Set / edition</label>
+          <input type="text" id="setNameInput" list="setOptionsList" placeholder="Type or pick from lookup matches" />
+          <datalist id="setOptionsList"></datalist>
+        </div>
+        <div class="field">
+          <label class="field-label" for="rarityInput">Rarity</label>
+          <input type="text" id="rarityInput" placeholder="e.g. Ultra Rare" />
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label class="field-label" for="printTypeSelect">Print type <span class="mono" style="color:var(--garnet-light)">*required</span></label>
+          <select id="printTypeSelect">
+            <option value="">— select —</option>
+            <option value="Normal">Normal</option>
+            <option value="Foil">Foil</option>
+            <option value="Holo">Holo</option>
+            <option value="Reverse Holo">Reverse Holo</option>
+            <option value="1st Edition">1st Edition</option>
+            <option value="Promo">Promo</option>
+            <option value="Other">Other (note below)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="conditionSelect">Condition tier (photo estimate) <span class="mono" style="color:var(--garnet-light)">*required</span></label>
+          <select id="conditionSelect">
+            <option value="">— select —</option>
+            <option value="Gem Mint (10)">Gem Mint (10) — flawless at zoom</option>
+            <option value="Mint (9)">Mint (9) — near-flawless, minor centering</option>
+            <option value="Near Mint/Excellent (7-8)">Near Mint / Excellent (7–8) — light edge/surface wear</option>
+            <option value="Excellent/Very Good (4-6)">Excellent / Very Good (4–6) — whitening, corner rounding</option>
+            <option value="Good/Fair (2-3)">Good / Fair (2–3) — creasing, notable wear</option>
+            <option value="Poor (1)">Poor (1) — heavy damage</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="gradedInput">Professionally graded? (optional — e.g. "PSA 9", "BGS 9.5")</label>
+        <input type="text" id="gradedInput" placeholder="Leave blank if raw / ungraded" />
+        <p class="sub" style="margin:4px 0 0;">If filled, this is recorded alongside your condition estimate — a graded card's value is governed by the slab grade, not the self-assessed tier above.</p>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="qtyInput">Quantity</label>
+        <input type="number" id="qtyInput" value="1" min="1" style="max-width:120px;" />
+      </div>
+
+      <div class="panel" style="background:rgba(255,255,255,0.02);margin-bottom:14px;">
+        <label class="field-label" style="margin-bottom:8px;">Check comps (opens in new tab — search manually, nothing auto-fetched)</label>
+        <div class="price-links" id="priceLinks"></div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label class="field-label" for="estLowInput">Estimated value — low (USD)</label>
+          <input type="number" id="estLowInput" step="0.01" min="0" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="estHighInput">Estimated value — high (USD)</label>
+          <input type="number" id="estHighInput" step="0.01" min="0" />
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="primarySourceInput">Primary source for this estimate</label>
+        <input type="text" id="primarySourceInput" placeholder="e.g. TCGplayer market price" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="conditionNotesInput">Condition notes (optional detail)</label>
+        <textarea id="conditionNotesInput" rows="2" placeholder="Whitening on left edge, sharp corners..."></textarea>
+      </div>
+
+      <div class="confirm-banner">✓ Reviewing before logging — nothing has been added to your collection yet.</div>
+      <div id="validationMsg" class="sub" role="alert" aria-live="polite" style="color:var(--garnet-light);margin-bottom:10px;"></div>
+      <button class="btn brass block" id="confirmAddBtn" type="button">Confirm &amp; add to collection</button>
+    </div>
+    </div><!-- /.scan-col-right -->
+    </div><!-- /.scan-grid -->
+
+  </section>
+
+  <!-- ============ COLLECTION TAB ============ -->
+  <section id="tab-collection" class="tab-content" style="display:none;">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+        <div>
+          <h2 style="margin-bottom:2px;">Your collection</h2>
+          <p class="sub" style="margin:0;">Saved locally in this browser only.</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <label class="btn ghost sm" for="importCsv">Import CSV</label>
+          <input id="importCsv" type="file" accept=".csv,text/csv" />
+          <button class="btn ghost sm" id="exportCsvBtn" type="button">Export CSV</button>
+          <button class="btn danger sm" id="clearAllBtn" type="button">Clear all</button>
+        </div>
+      </div>
+      <input class="search" type="text" id="searchInput" placeholder="Search name, set, or notes..." />
+      <div class="table-scroll">
+        <table id="collectionTable">
+          <thead><tr>
+            <th>Card</th><th>Game</th><th>Print</th><th>Condition</th>
+            <th class="num">Qty</th><th class="num">Est. Value</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="collectionBody"></tbody>
+        </table>
+      </div>
+      <div id="collectionEmpty" class="empty" style="display:none;margin-top:10px;">
+        No cards logged yet. Use <strong>Scan &amp; Add</strong> to photograph and confirm your first card.
+      </div>
+      <div id="collectionTotal" class="sub" style="margin-top:10px;"></div>
+    </div>
+  </section>
+
+  <!-- ============ FOR-SALE ARCHIVE TAB ============ -->
+  <section id="tab-forsale" class="tab-content" style="display:none;">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+        <div>
+          <h2 style="margin-bottom:2px;">For-Sale archive</h2>
+          <p class="sub" style="margin:0;">Your own archive, imported by you. Stored only in this browser — nobody else who opens this app sees it, and nothing loads here automatically.</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <label class="btn ghost sm" for="importForSaleCsv">Import CSV</label>
+          <input id="importForSaleCsv" type="file" accept=".csv,text/csv" />
+          <button class="btn ghost sm" id="exportForSaleCsvBtn" type="button">Export CSV</button>
+          <button class="btn danger sm" id="clearForSaleBtn" type="button">Clear</button>
+        </div>
+      </div>
+      <p class="sub">Expected columns: <span class="mono">Name, Price, Quantity, Total</span> (extra columns are ignored).</p>
+      <input class="search" type="text" id="forSaleSearch" placeholder="Search archive..." />
+      <div class="table-scroll">
+        <table id="forSaleTable">
+          <thead><tr><th>Name</th><th class="num">Price</th><th class="num">Qty</th><th class="num">Total</th></tr></thead>
+          <tbody id="forSaleBody"></tbody>
+        </table>
+      </div>
+      <div id="forSaleEmpty" class="empty" style="display:none;">No archive imported yet. Tap <strong>Import CSV</strong> above to load your own for-sale listings.</div>
+    </div>
+  </section>
+
+  <!-- ============ ABOUT / DOCS TAB ============ -->
+  <section id="tab-about" class="tab-content" style="display:none;">
+    <div class="panel">
+      <h2>Step-by-step: logging a card correctly</h2>
+      <ol style="padding-left:20px;line-height:1.7;color:var(--parchment);font-size:14px;">
+        <li><strong>Pick the game first.</strong> This decides which free database (Scryfall / pokemontcg.io / YGOPRODeck) gets searched — picking the wrong game means the lookup will never find a match.</li>
+        <li><strong>Photograph the front of the card flat, in good light, filling the frame.</strong> Glare, blur, or a steep angle is the most common reason OCR guesses badly. If the first attempt reads poorly, use <em>Retake photo</em> rather than pushing ahead with a bad guess.</li>
+        <li><strong>Read the suggested matches, don't just tap the first one.</strong> OCR gives a starting guess, not a fact — check the set name and rarity shown against your physical card before selecting. If nothing matches, use <em>None of these — enter manually</em> and type the name yourself.</li>
+        <li><strong>Print type is always your call.</strong> Foil, holo, and reverse-holo can catch light differently in every photo, so the app will never guess this for you. Picking wrong here is the single most common way collection value gets inflated — take the extra second to check the physical card.</li>
+        <li><strong>Condition is a self-assessed estimate, not a grade.</strong> Compare your card against the tiers in the condition dropdown (same scale as <span class="mono">docs/GRADING_REFERENCE.md</span>). When in doubt, pick the lower tier — it's easy to revise a value up later, harder to trust a collection that's optimistically graded.</li>
+        <li><strong>Check comps before typing a price.</strong> Tap the TCGplayer / eBay / StarCityGames links — they open pre-filled searches for the exact name you entered. Use eBay's <em>sold listings</em> filter (already applied) over active listings, since active listings are asking prices, not what anything actually sold for.</li>
+        <li><strong>Confirm & add is the only thing that logs the card.</strong> Every step before this can be backed out of freely — nothing is saved until you tap that button.</li>
+      </ol>
+    </div>
+
+    <div class="panel">
+      <h2>Frequently asked</h2>
+      <div style="line-height:1.6;font-size:14px;">
+        <p><strong style="color:var(--parchment);">Where is my data actually stored?</strong><br>
+        <span class="sub">In this browser's local storage, on this device, only. There's no server and no account — nobody else can see it, and it won't appear on another device unless you export and import the CSV yourself.</span></p>
+
+        <p><strong style="color:var(--parchment);">If I send someone this app's link, do they see my cards?</strong><br>
+        <span class="sub">No. Both the Collection and For-Sale Archive tabs start empty for every new visitor — each person's data lives only in their own browser. Sharing the link shares the tool, not your inventory.</span></p>
+
+        <p><strong style="color:var(--parchment);">Why won't it just tell me if a card is foil?</strong><br>
+        <span class="sub">Foil, holo, and reverse-holo effects depend on lighting and angle in a way a flat photo can't reliably capture — and foil/normal prices differ substantially. Guessing wrong here would silently inflate or deflate your collection value, so it's always a manual choice.</span></p>
+
+        <p><strong style="color:var(--parchment);">OCR keeps missing / lookup found nothing — what do I do?</strong><br>
+        <span class="sub">Retake the photo in better light, or just type the name into the search box yourself and tap "Search this name." You can also skip lookup entirely with "None of these — enter manually" and fill in the set/rarity by hand.</span></p>
+
+        <p><strong style="color:var(--parchment);">Why is pricing just links instead of an automatic number?</strong><br>
+        <span class="sub">Automatic pricing would mean either paying for an API or scraping marketplaces in a way that breaks quietly and can't be trusted. Link-outs stay free, stay accurate to what you actually see, and never auto-refresh a number behind your back.</span></p>
+
+        <p><strong style="color:var(--parchment);">How do I move my collection to a new phone?</strong><br>
+        <span class="sub">Collection tab → Export CSV, then on the new device open the app and use Import CSV. Same pattern for the For-Sale Archive tab.</span></p>
+      </div>
+      <p class="sub" style="margin-top:14px;">Full reference docs: <span class="mono">docs/GRADING_REFERENCE.md</span> and <span class="mono">docs/SCHEMA_REFERENCE.md</span> in the repo.</p>
+    </div>
+
+    <details class="dev">
+      <summary>Developer tools — self-tests</summary>
+      <div class="panel" style="margin-top:10px;">
+        <p class="sub">Validates the confirmation gate, CSV round-trip, and pricing math against a set of pass/fail assertions. No camera or network calls involved.</p>
+        <button class="btn ghost sm" id="runTestsBtn" type="button">Run self-tests</button>
+        <div id="testLog" role="status" aria-live="polite"></div>
+      </div>
+    </details>
+  </section>
+
+  <footer>Card Ledger • Local-only storage • No accounts • No payments • <span id="versionTag" class="mono"></span></footer>
+</div>
+<div id="toastHost" aria-live="polite"></div>
+
+<script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     CONSTANTS
+  ============================================================ */
+  const STORAGE_KEY = 'cardLedgerCollection_v2';
+  const QUICKSTART_KEY = 'cardLedgerHideQuickstart_v1';
+  const APP_VERSION = 'v2.1.0';
+  document.getElementById('versionTag').textContent = APP_VERSION;
+
+  const HTML_ESCAPES = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+  function escapeHtml(s){ return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, m => HTML_ESCAPES[m]); }
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function fmtMoney(n){
+    if(n === '' || n === null || n === undefined || isNaN(Number(n))) return '—';
+    return Number(n).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
+  }
+
+  /* ============================================================
+     TOASTS — lightweight, non-blocking feedback for successful
+     actions. Destructive actions (delete/clear) still use native
+     confirm() on purpose, since a blocking prompt is appropriate
+     when the action can't be undone.
+  ============================================================ */
+  function toast(message, kind){
+    const host = document.getElementById('toastHost');
+    if(!host) { return; }
+    const el = document.createElement('div');
+    el.className = 'toast' + (kind === 'err' ? ' err' : '');
+    el.textContent = message;
+    host.appendChild(el);
+    setTimeout(() => { el.remove(); }, 3200);
+  }
+
+  /* ============================================================
+     QUICKSTART PANEL — dismiss-and-remember, reopenable via "?"
+  ============================================================ */
+  function setQuickstartVisible(visible){
+    const panel = document.getElementById('quickstartPanel');
+    if(!panel) return;
+    panel.style.display = visible ? 'block' : 'none';
+    if(!visible) localStorage.setItem(QUICKSTART_KEY, '1');
+  }
+  const qsHidden = (() => { try{ return localStorage.getItem(QUICKSTART_KEY) === '1'; }catch(e){ return false; } })();
+  setQuickstartVisible(!qsHidden);
+  document.getElementById('dismissQuickstart').addEventListener('click', () => setQuickstartVisible(false));
+  document.getElementById('helpBtn').addEventListener('click', () => {
+    setQuickstartVisible(true);
+    document.querySelector('.tab-btn[data-tab="scan"]').click();
+    document.getElementById('quickstartPanel').scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+
+  /* ============================================================
+     SCAN STEP PROGRESS — purely visual, reflects how far through
+     the mandatory pipeline the user currently is.
+  ============================================================ */
+  function setScanStep(step){
+    document.querySelectorAll('.step-dot').forEach(dot => {
+      const n = Number(dot.dataset.step);
+      dot.classList.toggle('done', n < step);
+      dot.classList.toggle('current', n === step);
+    });
+    document.querySelectorAll('[data-step-label]').forEach(label => {
+      label.classList.toggle('active', Number(label.dataset.stepLabel) === step);
+    });
+  }
+
+  /* ============================================================
+     CSV helpers (RFC4180-ish, quote-aware)
+  ============================================================ */
+  function csvEscape(s){
+    s = String(s === undefined || s === null ? '' : s);
+    if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  }
+  function parseCSV(text){
+    const rows = []; let cur = []; let field=''; let inQuotes=false; let i=0;
+    while(i < text.length){
+      const ch = text[i];
+      if(inQuotes){
+        if(ch === '"'){
+          if(text[i+1] === '"'){ field += '"'; i += 2; continue; }
+          inQuotes = false; i++; continue;
+        } else { field += ch; i++; continue; }
+      } else {
+        if(ch === '"'){ inQuotes = true; i++; continue; }
+        if(ch === ','){ cur.push(field); field=''; i++; continue; }
+        if(ch === '\r'){ i++; continue; }
+        if(ch === '\n'){ cur.push(field); rows.push(cur); cur=[]; field=''; i++; continue; }
+        field += ch; i++;
+      }
+    }
+    if(field !== '' || cur.length){ cur.push(field); rows.push(cur); }
+    return rows.filter(r => !(r.length===1 && r[0]===''));
+  }
+  function rowsToObjects(rows){
+    if(!rows.length) return [];
+    const header = rows[0].map(h => h.trim());
+    return rows.slice(1).map(cols => {
+      const o = {};
+      header.forEach((h,idx) => o[h] = cols[idx] !== undefined ? cols[idx] : '');
+      return o;
+    });
+  }
+
+  /* ============================================================
+     COLLECTION SCHEMA (aligned to docs/SCHEMA_REFERENCE.md)
+     card_id, game, card_name, set_name, rarity, print_type, qty,
+     condition_tier, condition_notes, est_value_low, est_value_high,
+     primary_source, last_priced_date, photo_ref
+  ============================================================ */
+  const COLLECTION_COLUMNS = ['card_id','game','card_name','set_name','rarity','print_type','qty',
+    'condition_tier','condition_notes','est_value_low','est_value_high','primary_source','last_priced_date','photo_ref'];
+
+  let collection = [];
+  function loadCollection(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      collection = raw ? JSON.parse(raw) : [];
+    }catch(e){ console.error('Load failed', e); collection = []; }
+  }
+  function saveCollection(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(collection)); return true; }
+    catch(e){ console.error('Save failed', e); return false; }
+  }
+
+  /* ============================================================
+     THE CONFIRMATION GATE
+     This is the single choke point every new row must pass
+     through. No other code path may push into `collection`.
+  ============================================================ */
+  function validateBeforeLog(draft){
+    const errors = [];
+    if(!draft || draft.userConfirmed !== true) errors.push('Row was not explicitly confirmed by the user.');
+    if(!draft || !draft.game) errors.push('Game is required.');
+    if(!draft || !draft.card_name || !String(draft.card_name).trim()) errors.push('Card name is required.');
+    if(!draft || !draft.print_type) errors.push('Print type is required (Normal/Foil/etc — never inferred automatically).');
+    if(draft && draft.print_type === 'Other' && !String(draft.condition_notes || '').trim()){
+      errors.push('Print type "Other" needs a note describing it — otherwise it can\'t be told apart from Normal later.');
+    }
+    if(!draft || !draft.condition_tier) errors.push('Condition tier is required.');
+    if(draft && draft.est_value_low !== '' && draft.est_value_low !== undefined && Number(draft.est_value_low) < 0){
+      errors.push('Low estimate cannot be negative.');
+    }
+    if(draft && draft.est_value_high !== '' && draft.est_value_high !== undefined && Number(draft.est_value_high) < 0){
+      errors.push('High estimate cannot be negative.');
+    }
+    if(draft && draft.est_value_low !== '' && draft.est_value_high !== ''
+       && draft.est_value_low !== undefined && draft.est_value_high !== undefined
+       && Number(draft.est_value_low) > Number(draft.est_value_high)){
+      errors.push('Low estimate cannot exceed high estimate.');
+    }
+    if(!draft || isNaN(Number(draft.qty)) || Number(draft.qty) <= 0) errors.push('Quantity must be at least 1.');
+    return { ok: errors.length === 0, errors };
+  }
+  // Looks for an existing row that is the same physical-card scenario
+  // (same name, set, print type, and condition tier) so a second copy
+  // increments quantity instead of silently forking into a duplicate row.
+  function findDuplicateRow(draft){
+    const name = String(draft.card_name || '').trim().toLowerCase();
+    return collection.find(r =>
+      r.card_name.trim().toLowerCase() === name &&
+      (r.set_name || '') === (draft.set_name || '') &&
+      r.print_type === draft.print_type &&
+      r.condition_tier === draft.condition_tier
+    );
+  }
+
+  function addToCollection(draft){
+    const check = validateBeforeLog(draft);
+    if(!check.ok) return { ok:false, errors: check.errors };
+
+    const dup = findDuplicateRow(draft);
+    if(dup){
+      dup.qty = Number(dup.qty) + Number(draft.qty);
+      // Keep the most recent pricing/source info when merging.
+      if(draft.est_value_low !== '') dup.est_value_low = Number(draft.est_value_low);
+      if(draft.est_value_high !== '') dup.est_value_high = Number(draft.est_value_high);
+      if(draft.primary_source) dup.primary_source = draft.primary_source;
+      dup.last_priced_date = draft.last_priced_date || new Date().toISOString().slice(0,10);
+      saveCollection();
+      return { ok:true, row:dup, merged:true };
+    }
+
+    const row = {
+      card_id: draft.card_id || uid(),
+      game: draft.game,
+      card_name: String(draft.card_name).trim(),
+      set_name: draft.set_name || '',
+      rarity: draft.rarity || '',
+      print_type: draft.print_type,
+      qty: Number(draft.qty) || 1,
+      condition_tier: draft.condition_tier,
+      condition_notes: draft.condition_notes || '',
+      est_value_low: draft.est_value_low === '' ? '' : Number(draft.est_value_low),
+      est_value_high: draft.est_value_high === '' ? '' : Number(draft.est_value_high),
+      primary_source: draft.primary_source || '',
+      last_priced_date: draft.last_priced_date || new Date().toISOString().slice(0,10),
+      photo_ref: draft.photo_ref || ''
+    };
+    collection.unshift(row);
+    saveCollection();
+    return { ok:true, row, merged:false };
+  }
+
+  /* ============================================================
+     TABS
+  ============================================================ */
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+      document.querySelectorAll('.tab-content').forEach(s => s.style.display = 'none');
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected','true');
+      document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
+      if(btn.dataset.tab === 'collection') renderCollection();
+      if(btn.dataset.tab === 'forsale') renderForSale();
+    });
+  });
+
+  /* ============================================================
+     SCAN & ADD — game selection
+  ============================================================ */
+  let selectedGame = '';
+  const GAME_LABELS = { mtg:'Magic: The Gathering', pokemon:'Pokémon', ygo:'Yu-Gi-Oh!' };
+  document.querySelectorAll('.game-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const switchingGameMidFlow = selectedGame && selectedGame !== chip.dataset.game
+        && document.getElementById('photoPreviewArea').style.display !== 'none';
+      document.querySelectorAll('.game-chip').forEach(c => { c.classList.remove('active'); c.setAttribute('aria-pressed','false'); });
+      chip.classList.add('active');
+      chip.setAttribute('aria-pressed','true');
+      selectedGame = chip.dataset.game;
+      setScanStep(2);
+      if(switchingGameMidFlow){
+        photoInput.value = '';
+        document.getElementById('photoPreviewArea').style.display = 'none';
+        document.getElementById('candidatesPanel').style.display = 'none';
+        document.getElementById('confirmPanel').style.display = 'none';
+        toast('Game changed — please retake the photo so lookup matches the right database.');
+      }
+    });
+  });
+
+  /* ============================================================
+     PHOTO CAPTURE + OCR
+  ============================================================ */
+  const photoInput = document.getElementById('cardPhotoInput');
+  const photoPreviewArea = document.getElementById('photoPreviewArea');
+  const photoPreviewImg = document.getElementById('photoPreviewImg');
+  const ocrStatus = document.getElementById('ocrStatus');
+  const confDial = document.getElementById('confDial');
+  const dialFill = document.getElementById('dialFill');
+  const dialLabel = document.getElementById('dialLabel');
+  const candidatesPanel = document.getElementById('candidatesPanel');
+  const candidateList = document.getElementById('candidateList');
+  const manualNameInput = document.getElementById('manualNameInput');
+  const confirmPanel = document.getElementById('confirmPanel');
+
+  let currentPhotoDataUrl = '';
+  let selectedCandidate = null;
+
+  function fileToDataUrl(file){
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
+  function setDial(pct){
+    const circumference = 226;
+    if(pct === null){ confDial.style.display = 'none'; return; }
+    confDial.style.display = 'block';
+    const offset = circumference - (circumference * Math.max(0, Math.min(100, pct)) / 100);
+    dialFill.style.strokeDashoffset = offset;
+    dialLabel.textContent = Math.round(pct) + '%';
+  }
+
+  photoInput.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    if(!selectedGame){
+      toast('Choose a game first (Magic / Pokémon / Yu-Gi-Oh!) so lookup queries the right database.', 'err');
+      photoInput.value = '';
+      return;
+    }
+    currentPhotoDataUrl = await fileToDataUrl(file);
+    photoPreviewImg.src = currentPhotoDataUrl;
+    photoPreviewArea.style.display = 'block';
+    candidatesPanel.style.display = 'none';
+    confirmPanel.style.display = 'none';
+    setDial(null);
+    setScanStep(3);
+    ocrStatus.textContent = 'Reading text from photo (on-device OCR)…';
+
+    try{
+      const result = await Tesseract.recognize(currentPhotoDataUrl, 'eng', { logger: () => {} });
+      const rawText = (result && result.data && result.data.text) ? result.data.text : '';
+      const guess = guessCardNameFromOCR(rawText);
+      ocrStatus.textContent = guess
+        ? 'OCR best guess: "' + guess + '" — confirm or correct below.'
+        : 'OCR could not confidently read text — enter the card name manually below.';
+      manualNameInput.value = guess || '';
+      candidatesPanel.style.display = 'block';
+      await runLookup(guess);
+    }catch(err){
+      console.error('OCR failed', err);
+      ocrStatus.textContent = 'OCR failed to run — enter the card name manually below.';
+      candidatesPanel.style.display = 'block';
+      manualNameInput.value = '';
+      renderCandidates([]);
+    }
+  });
+
+  document.getElementById('retakeBtn').addEventListener('click', () => {
+    photoInput.value = '';
+    photoPreviewArea.style.display = 'none';
+    candidatesPanel.style.display = 'none';
+    confirmPanel.style.display = 'none';
+    setScanStep(2);
+  });
+
+  document.getElementById('captureZone').addEventListener('click', (e) => {
+    if(!selectedGame){
+      e.preventDefault();
+      toast('Choose a game first (Magic / Pokémon / Yu-Gi-Oh!) above.', 'err');
+    }
+  });
+
+  // Heuristic: prefer the longest mostly-alphabetic line, skip pure-number / very short lines.
+  function guessCardNameFromOCR(text){
+    if(!text) return '';
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    let best = '';
+    for(const line of lines){
+      const letters = (line.match(/[A-Za-z]/g) || []).length;
+      if(letters < 3) continue;
+      if(letters / line.length < 0.5) continue;
+      if(line.length > best.length) best = line;
+    }
+    return best.replace(/[^A-Za-z0-9,'\-\s]/g,'').trim();
+  }
+
+  /* ============================================================
+     FREE CARD DATABASE LOOKUP (no API key, no cost)
+     - Magic: Scryfall
+     - Pokemon: pokemontcg.io
+     - Yu-Gi-Oh: YGOPRODeck
+  ============================================================ */
+  async function runLookup(query){
+    if(!query){ renderCandidates([]); return; }
+    ocrStatus.textContent = ocrStatus.textContent.replace(/ Searching.*$/, '') + ' Searching ' + GAME_LABELS[selectedGame] + ' database…';
+    try{
+      let candidates = [];
+      if(selectedGame === 'mtg'){
+        // unique=prints returns every printing/set of a matching name, not
+        // just one representative card — Scryfall's default collapses all
+        // printings into a single result otherwise.
+        const res = await fetch('https://api.scryfall.com/cards/search?unique=prints&order=released&q=' + encodeURIComponent(query));
+        if(res.ok){
+          const data = await res.json();
+          candidates = (data.data || []).slice(0,30).map(c => ({
+            name: c.name, set_name: c.set_name, rarity: c.rarity, source:'Scryfall',
+            image: c.image_uris ? c.image_uris.small : (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris ? c.card_faces[0].image_uris.small : '')
+          }));
+        }
+      } else if(selectedGame === 'pokemon'){
+        // Pokémon TCG API already returns one object per set printing, so
+        // a card reprinted many times naturally yields many candidates —
+        // just raise the cap so those aren't cut off.
+        const res = await fetch('https://api.pokemontcg.io/v2/cards?q=' + encodeURIComponent('name:' + query + '*'));
+        if(res.ok){
+          const data = await res.json();
+          candidates = (data.data || []).slice(0,30).map(c => ({
+            name: c.name, set_name: c.set ? c.set.name : '', rarity: c.rarity || '', source:'Pokémon TCG API',
+            image: c.images ? c.images.small : ''
+          }));
+        }
+      } else if(selectedGame === 'ygo'){
+        const res = await fetch('https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + encodeURIComponent(query));
+        if(res.ok){
+          const data = await res.json();
+          // Each matched card can have many set printings (card_sets[]).
+          // Expand every set into its own selectable candidate instead of
+          // only ever showing card_sets[0] — that was silently discarding
+          // every other set a card was ever printed in.
+          candidates = [];
+          (data.data || []).forEach(c => {
+            const img = (c.card_images && c.card_images[0]) ? c.card_images[0].image_url_small : '';
+            if(c.card_sets && c.card_sets.length){
+              c.card_sets.forEach(s => {
+                candidates.push({
+                  name: c.name, set_name: s.set_name || '', rarity: s.set_rarity || '',
+                  source:'YGOPRODeck', image: img
+                });
+              });
+            } else {
+              candidates.push({ name: c.name, set_name: '', rarity: '', source:'YGOPRODeck', image: img });
+            }
+          });
+          candidates = candidates.slice(0,30);
+        }
+      }
+      renderCandidates(candidates);
+      populateSetOptions(candidates);
+      setDial(candidates.length ? Math.min(95, 40 + candidates.length*10) : 15);
+    }catch(err){
+      console.error('Lookup failed', err);
+      ocrStatus.textContent += ' Lookup unavailable (offline or rate-limited) — enter details manually.';
+      renderCandidates([]);
+      setDial(0);
+    }
+  }
+
+  // Live, debounced search-as-you-type — fires automatically after a short
+  // pause in typing (min. 3 characters) so matches appear before the user
+  // finishes typing the full name. The button remains as an explicit,
+  // immediate fallback (useful right after picking a candidate, or if
+  // debounce timing feels off).
+  let lookupDebounceTimer = null;
+  function scheduleLiveLookup(){
+    if(!selectedGame) return;
+    clearTimeout(lookupDebounceTimer);
+    const q = manualNameInput.value.trim();
+    if(q.length < 3){ return; }
+    lookupDebounceTimer = setTimeout(() => runLookup(q), 400);
+  }
+
+  document.getElementById('lookupBtn').addEventListener('click', () => {
+    if(!selectedGame){ toast('Choose a game first.', 'err'); return; }
+    clearTimeout(lookupDebounceTimer);
+    runLookup(manualNameInput.value.trim());
+  });
+
+  // Populate a <datalist> of set names from the current candidates, so the
+  // Set/edition field on the confirm panel offers real matching sets to
+  // pick from, instead of requiring exact free-typed text.
+  function populateSetOptions(candidates){
+    const list = document.getElementById('setOptionsList');
+    if(!list) return;
+    const uniqueSets = [...new Set(candidates.map(c => c.set_name).filter(Boolean))];
+    list.innerHTML = uniqueSets.map(s => `<option value="${escapeHtml(s)}"></option>`).join('');
+  }
+
+  function renderCandidates(list){
+    candidateList.innerHTML = '';
+    selectedCandidate = null;
+    if(!list.length){
+      candidateList.innerHTML = '<div class="sub">No automatic matches yet. Keep typing, tap "Search this name," or use "None of these — enter manually" below.</div>';
+    } else {
+      list.forEach((c, idx) => {
+        const div = document.createElement('div');
+        div.className = 'candidate';
+        div.dataset.idx = idx;
+        div.setAttribute('role','button');
+        div.setAttribute('tabindex','0');
+        const thumb = c.image
+          ? `<img src="${escapeHtml(c.image)}" alt="" class="candidate-thumb" loading="lazy">`
+          : `<div class="candidate-thumb candidate-thumb-empty" aria-hidden="true"></div>`;
+        div.innerHTML = `${thumb}<div style="flex:1;min-width:0;"><div class="name">${escapeHtml(c.name)}</div><div class="meta">${escapeHtml(c.set_name || '')}${c.rarity ? ' · ' + escapeHtml(c.rarity) : ''}</div><div class="source-tag">${escapeHtml(c.source)}</div></div>`;
+        const selectThis = () => {
+          document.querySelectorAll('.candidate').forEach(el => el.classList.remove('selected'));
+          div.classList.add('selected');
+          selectedCandidate = c;
+          manualNameInput.value = c.name;
+          document.getElementById('setNameInput').value = c.set_name || '';
+          document.getElementById('rarityInput').value = c.rarity || '';
+          openConfirmPanel();
+        };
+        div.addEventListener('click', selectThis);
+        div.addEventListener('keydown', (ev) => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); selectThis(); } });
+        candidateList.appendChild(div);
+      });
+    }
+    const manualBtn = document.createElement('button');
+    manualBtn.type = 'button';
+    manualBtn.className = 'btn ghost sm';
+    manualBtn.textContent = 'None of these — enter manually';
+    manualBtn.style.marginTop = '4px';
+    manualBtn.addEventListener('click', () => {
+      selectedCandidate = null;
+      document.querySelectorAll('.candidate').forEach(el => el.classList.remove('selected'));
+      openConfirmPanel();
+    });
+    candidateList.appendChild(manualBtn);
+  }
+
+  function openConfirmPanel(){
+    confirmPanel.style.display = 'block';
+    confirmPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    updatePriceLinks();
+    document.getElementById('validationMsg').textContent = '';
+    setScanStep(4);
+  }
+
+  function updatePriceLinks(){
+    const name = manualNameInput.value.trim();
+    const q = encodeURIComponent(name);
+    const links = document.getElementById('priceLinks');
+    if(!name){ links.innerHTML = ''; return; }
+    links.innerHTML = `
+      <a href="https://www.tcgplayer.com/search/all/product?q=${q}" target="_blank" rel="noopener">TCGplayer ↗</a>
+      <a href="https://www.ebay.com/sch/i.html?_nkw=${q}&LH_Sold=1&LH_Complete=1" target="_blank" rel="noopener">eBay sold listings ↗</a>
+      <a href="https://starcitygames.com/search/?search_query=${q}" target="_blank" rel="noopener">StarCityGames ↗</a>
+    `;
+  }
+  manualNameInput.addEventListener('input', () => { updatePriceLinks(); scheduleLiveLookup(); });
+
+  /* ============================================================
+     CONFIRM & ADD
+  ============================================================ */
+  document.getElementById('confirmAddBtn').addEventListener('click', () => {
+    const gradedValue = document.getElementById('gradedInput').value.trim();
+    const rawNotes = document.getElementById('conditionNotesInput').value.trim();
+    const draft = {
+      card_id: uid(),
+      game: selectedGame,
+      card_name: manualNameInput.value.trim(),
+      set_name: document.getElementById('setNameInput').value.trim(),
+      rarity: document.getElementById('rarityInput').value.trim(),
+      print_type: document.getElementById('printTypeSelect').value,
+      qty: document.getElementById('qtyInput').value || 1,
+      condition_tier: document.getElementById('conditionSelect').value,
+      condition_notes: gradedValue ? ('Graded: ' + gradedValue + (rawNotes ? ' — ' + rawNotes : '')) : rawNotes,
+      est_value_low: document.getElementById('estLowInput').value,
+      est_value_high: document.getElementById('estHighInput').value,
+      primary_source: document.getElementById('primarySourceInput').value.trim(),
+      last_priced_date: new Date().toISOString().slice(0,10),
+      photo_ref: 'photo-' + Date.now() + '.jpg',
+      userConfirmed: true
+    };
+    const result = addToCollection(draft);
+    const msg = document.getElementById('validationMsg');
+    if(!result.ok){
+      msg.textContent = result.errors.join(' ');
+      return;
+    }
+    msg.textContent = '';
+    // reset flow
+    photoInput.value = '';
+    photoPreviewArea.style.display = 'none';
+    candidatesPanel.style.display = 'none';
+    confirmPanel.style.display = 'none';
+    ['setNameInput','rarityInput','conditionNotesInput','primarySourceInput','gradedInput'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('printTypeSelect').value = '';
+    document.getElementById('conditionSelect').value = '';
+    document.getElementById('estLowInput').value = '';
+    document.getElementById('estHighInput').value = '';
+    document.getElementById('qtyInput').value = 1;
+    manualNameInput.value = '';
+    setScanStep(2);
+    document.querySelector('.plate')?.scrollIntoView({ behavior:'smooth', block:'start' });
+    toast(result.merged
+      ? 'Already had this exact card — quantity is now ' + result.row.qty + '.'
+      : 'Added "' + result.row.card_name + '" to your collection.');
+  });
+
+  /* ============================================================
+     COLLECTION TAB
+  ============================================================ */
+  const collectionBody = document.getElementById('collectionBody');
+  const collectionEmpty = document.getElementById('collectionEmpty');
+  const searchInput = document.getElementById('searchInput');
+
+  function renderCollection(filter){
+    filter = (filter || searchInput.value || '').toLowerCase();
+    collectionBody.innerHTML = '';
+    const rows = collection.filter(r => !filter ||
+      (r.card_name||'').toLowerCase().includes(filter) ||
+      (r.set_name||'').toLowerCase().includes(filter) ||
+      (r.condition_notes||'').toLowerCase().includes(filter));
+    collectionEmpty.style.display = rows.length ? 'none' : 'block';
+    let totalLow = 0, totalHigh = 0;
+    rows.forEach(item => {
+      totalLow += (Number(item.est_value_low)||0) * (Number(item.qty)||0);
+      totalHigh += (Number(item.est_value_high)||0) * (Number(item.qty)||0);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><div style="font-weight:600">${escapeHtml(item.card_name)}</div><div class="meta" style="color:var(--muted);font-size:11.5px;">${escapeHtml(item.set_name||'')}${item.rarity ? ' · '+escapeHtml(item.rarity):''}</div></td>
+        <td><span class="tag ${escapeHtml(item.game)}">${escapeHtml(GAME_LABELS[item.game]||item.game)}</span></td>
+        <td><span class="tag print">${escapeHtml(item.print_type)}</span></td>
+        <td style="font-size:12px;color:var(--muted);">${escapeHtml(item.condition_tier)}</td>
+        <td class="num">${escapeHtml(String(item.qty))}</td>
+        <td class="num">${fmtMoney(item.est_value_low)}–${fmtMoney(item.est_value_high)}</td>
+        <td><div class="row-actions"><button class="btn ghost sm" data-action="del" data-id="${item.card_id}">Delete</button></div></td>
+      `;
+      collectionBody.appendChild(tr);
+    });
+    document.getElementById('collectionTotal').textContent = rows.length
+      ? `${rows.length} card row(s) · Estimated total: ${fmtMoney(totalLow)} – ${fmtMoney(totalHigh)}`
+      : '';
+  }
+  searchInput.addEventListener('input', () => renderCollection());
+  collectionBody.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    if(btn.dataset.action === 'del'){
+      if(confirm('Delete this row? This cannot be undone.')){
+        collection = collection.filter(r => r.card_id !== btn.dataset.id);
+        saveCollection();
+        renderCollection();
+      }
+    }
+  });
+
+  document.getElementById('clearAllBtn').addEventListener('click', () => {
+    if(!confirm('Clear your entire logged collection? This cannot be undone.')) return;
+    collection = [];
+    saveCollection();
+    renderCollection();
+  });
+
+  function exportCollectionCSV(){
+    if(!collection.length){ toast('No items to export.', 'err'); return; }
+    const rows = collection.map(r => COLLECTION_COLUMNS.map(c => csvEscape(r[c])).join(','));
+    const csv = [COLLECTION_COLUMNS.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'cards.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+  document.getElementById('exportCsvBtn').addEventListener('click', exportCollectionCSV);
+
+  document.getElementById('importCsv').addEventListener('change', e => {
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const objs = rowsToObjects(parseCSV(ev.target.result));
+      let added = 0;
+      objs.forEach(o => {
+        collection.unshift({
+          card_id: o.card_id || uid(),
+          game: o.game || '',
+          card_name: o.card_name || '',
+          set_name: o.set_name || '',
+          rarity: o.rarity || '',
+          print_type: o.print_type || '',
+          qty: Number(o.qty) || 1,
+          condition_tier: o.condition_tier || '',
+          condition_notes: o.condition_notes || '',
+          est_value_low: o.est_value_low || '',
+          est_value_high: o.est_value_high || '',
+          primary_source: o.primary_source || '',
+          last_priced_date: o.last_priced_date || '',
+          photo_ref: o.photo_ref || ''
+        });
+        added++;
+      });
+      saveCollection();
+      renderCollection();
+      toast('Imported ' + added + ' row(s).');
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  /* ============================================================
+     FOR-SALE ARCHIVE — per-user, localStorage-backed.
+     Nothing is bundled or auto-loaded for any visitor; each person
+     imports their own CSV, stored only in their own browser, exactly
+     like the Collection tab.
+  ============================================================ */
+  const FORSALE_STORAGE_KEY = 'cardLedgerForSaleArchive_v1';
+  const FORSALE_COLUMNS = ['Name','Price','Quantity','Total'];
+  let forSaleArchive = [];
+  function loadForSaleArchive(){
+    try{
+      const raw = localStorage.getItem(FORSALE_STORAGE_KEY);
+      forSaleArchive = raw ? JSON.parse(raw) : [];
+    }catch(e){ console.error('Load failed', e); forSaleArchive = []; }
+  }
+  function saveForSaleArchive(){
+    try{ localStorage.setItem(FORSALE_STORAGE_KEY, JSON.stringify(forSaleArchive)); return true; }
+    catch(e){ console.error('Save failed', e); return false; }
+  }
+  function renderForSale(filter){
+    filter = (filter || document.getElementById('forSaleSearch').value || '').toLowerCase();
+    const body = document.getElementById('forSaleBody');
+    body.innerHTML = '';
+    const rows = forSaleArchive.filter(r => !filter || (r.Name||'').toLowerCase().includes(filter));
+    document.getElementById('forSaleEmpty').style.display = rows.length ? 'none' : 'block';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${escapeHtml(r.Name)}</td><td class="num">${escapeHtml(r.Price)}</td><td class="num">${escapeHtml(r.Quantity)}</td><td class="num">${escapeHtml(r.Total)}</td>`;
+      body.appendChild(tr);
+    });
+  }
+  document.getElementById('forSaleSearch').addEventListener('input', () => renderForSale());
+
+  document.getElementById('importForSaleCsv').addEventListener('change', e => {
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const objs = rowsToObjects(parseCSV(ev.target.result));
+      forSaleArchive = objs.map(o => ({ Name:o.Name||'', Price:o.Price||'', Quantity:o.Quantity||'', Total:o.Total||'' }));
+      saveForSaleArchive();
+      renderForSale();
+      toast('Imported ' + forSaleArchive.length + ' row(s) into your local archive.');
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  document.getElementById('exportForSaleCsvBtn').addEventListener('click', () => {
+    if(!forSaleArchive.length){ toast('No archive rows to export.', 'err'); return; }
+    const rows = forSaleArchive.map(r => FORSALE_COLUMNS.map(c => csvEscape(r[c])).join(','));
+    const csv = [FORSALE_COLUMNS.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'for_sale_archive.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('clearForSaleBtn').addEventListener('click', () => {
+    if(!confirm('Clear your imported for-sale archive? This cannot be undone.')) return;
+    forSaleArchive = [];
+    saveForSaleArchive();
+    renderForSale();
+  });
+
+  /* ============================================================
+     SELF-TESTS (pure-function, no camera/network required)
+  ============================================================ */
+  function runSelfTests(){
+    const log = document.getElementById('testLog');
+    const results = [];
+    function assert(name, cond){ results.push({name, pass: !!cond}); }
+
+    // Snapshot collection so tests don't pollute real data
+    const savedCollection = collection.slice();
+    const savedLS = localStorage.getItem(STORAGE_KEY);
+
+    try{
+      // 1. Confirmation gate blocks unconfirmed rows
+      collection = [];
+      const r1 = addToCollection({ game:'mtg', card_name:'Test Card', print_type:'Normal', condition_tier:'Mint (9)', qty:1, userConfirmed:false });
+      assert('Confirmation gate rejects unconfirmed draft', r1.ok === false && collection.length === 0);
+
+      // 2. Print type required
+      const r2 = addToCollection({ game:'mtg', card_name:'Test Card', condition_tier:'Mint (9)', qty:1, userConfirmed:true });
+      assert('Print type is required before logging', r2.ok === false && collection.length === 0);
+
+      // 3. Valid confirmed draft is accepted exactly once
+      const r3 = addToCollection({ game:'ygo', card_name:'Blue-Eyes White Dragon', print_type:'1st Edition', condition_tier:'Near Mint/Excellent (7-8)', qty:1, est_value_low:10, est_value_high:20, userConfirmed:true });
+      assert('Valid confirmed draft is accepted', r3.ok === true && collection.length === 1);
+
+      // 4. Low/high estimate ordering enforced
+      const r4 = addToCollection({ game:'ygo', card_name:'Bad Range', print_type:'Normal', condition_tier:'Mint (9)', qty:1, est_value_low:50, est_value_high:10, userConfirmed:true });
+      assert('Rejects low estimate greater than high estimate', r4.ok === false);
+
+      // 4b. Negative estimates rejected
+      const r4b = addToCollection({ game:'ygo', card_name:'Negative Value', print_type:'Normal', condition_tier:'Mint (9)', qty:1, est_value_low:-5, userConfirmed:true });
+      assert('Rejects a negative low estimate', r4b.ok === false);
+
+      // 4c. Print type "Other" requires a descriptive note
+      const r4c = addToCollection({ game:'ygo', card_name:'Odd Print', print_type:'Other', condition_tier:'Mint (9)', qty:1, userConfirmed:true });
+      assert('Print type "Other" is rejected without a condition note', r4c.ok === false);
+      const r4d = addToCollection({ game:'ygo', card_name:'Odd Print', print_type:'Other', condition_tier:'Mint (9)', qty:1, condition_notes:'Misprint variant', userConfirmed:true });
+      assert('Print type "Other" is accepted once a condition note is given', r4d.ok === true);
+
+      // 4e. Non-numeric quantity is rejected rather than silently coerced
+      const r4e = addToCollection({ game:'ygo', card_name:'Bad Qty', print_type:'Normal', condition_tier:'Mint (9)', qty:'abc', userConfirmed:true });
+      assert('Rejects a non-numeric quantity', r4e.ok === false);
+
+      // 5. Foil vs Normal never silently merge (separate rows keep separate print_type)
+      addToCollection({ game:'mtg', card_name:'Same Card', print_type:'Normal', condition_tier:'Mint (9)', qty:1, userConfirmed:true });
+      addToCollection({ game:'mtg', card_name:'Same Card', print_type:'Foil', condition_tier:'Mint (9)', qty:1, userConfirmed:true });
+      const sameName = collection.filter(r => r.card_name === 'Same Card');
+      assert('Foil and Normal print types remain distinct rows', sameName.length === 2 && sameName[0].print_type !== sameName[1].print_type);
+
+      // 5b. Exact duplicate (same name/set/print/condition) merges into existing row's quantity
+      collection = [];
+      addToCollection({ game:'ygo', card_name:'Duplicate Test', set_name:'Test Set', print_type:'Normal', condition_tier:'Mint (9)', qty:1, userConfirmed:true });
+      const dupResult = addToCollection({ game:'ygo', card_name:'Duplicate Test', set_name:'Test Set', print_type:'Normal', condition_tier:'Mint (9)', qty:2, userConfirmed:true });
+      assert('Exact duplicate merges into one row instead of forking', collection.filter(r => r.card_name === 'Duplicate Test').length === 1);
+      assert('Merged duplicate sums quantity correctly (1 + 2 = 3)', dupResult.merged === true && dupResult.row.qty === 3);
+
+      // 5c. Same name but different set is NOT treated as a duplicate
+      addToCollection({ game:'ygo', card_name:'Duplicate Test', set_name:'Different Set', print_type:'Normal', condition_tier:'Mint (9)', qty:1, userConfirmed:true });
+      assert('Same name in a different set is kept as a separate row', collection.filter(r => r.card_name === 'Duplicate Test').length === 2);
+
+      // 6. CSV export/import round-trip preserves key fields
+      const csvLine = COLLECTION_COLUMNS.map(c => csvEscape(collection[0][c])).join(',');
+      const parsedBack = rowsToObjects(parseCSV(COLLECTION_COLUMNS.join(',') + '\n' + csvLine))[0];
+      assert('CSV round-trip preserves card_name', parsedBack.card_name === collection[0].card_name);
+      assert('CSV round-trip preserves print_type', parsedBack.print_type === collection[0].print_type);
+
+      // 7. CSV escaping handles commas and quotes
+      const tricky = csvEscape('Card, "Special" Edition');
+      assert('CSV escaping wraps and doubles quotes', tricky === '"Card, ""Special"" Edition"');
+
+      // 8. localStorage persistence survives save/reload cycle
+      saveCollection();
+      const reloaded = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      assert('localStorage persists the full collection', Array.isArray(reloaded) && reloaded.length === collection.length);
+
+      // 9. OCR name-guess heuristic picks the most letter-dense line
+      const guess = guessCardNameFromOCR("1998\nBlue-Eyes White Dragon\n### rare ###\n");
+      assert('OCR heuristic favors the letter-dense line', guess.includes('Blue-Eyes White Dragon'));
+
+      // 9b. YGO lookup expands every card_sets[] entry into its own candidate
+      //     (regression guard: this previously only ever read card_sets[0],
+      //     silently discarding every other set a card was printed in)
+      const fakeYgoResponse = { data: [{
+        name: 'Multi-Set Card',
+        card_images: [{ image_url_small: 'x.jpg' }],
+        card_sets: [
+          { set_name: 'Set Alpha', set_rarity: 'Common' },
+          { set_name: 'Set Beta', set_rarity: 'Rare' },
+          { set_name: 'Set Gamma', set_rarity: 'Ultra Rare' }
+        ]
+      }] };
+      const expandedYgoCandidates = [];
+      fakeYgoResponse.data.forEach(c => {
+        (c.card_sets || []).forEach(s => expandedYgoCandidates.push({ name: c.name, set_name: s.set_name, rarity: s.set_rarity }));
+      });
+      assert('A card with 3 known set printings yields 3 separate candidates, not 1', expandedYgoCandidates.length === 3);
+      assert('Each expanded candidate keeps its own distinct set name', new Set(expandedYgoCandidates.map(c => c.set_name)).size === 3);
+
+      // 10. escapeHtml neutralizes markup (no injection via card name)
+      assert('escapeHtml neutralizes angle brackets', escapeHtml('<scr' + 'ipt>x<' + '/scr' + 'ipt>') === '&lt;script&gt;x&lt;/script&gt;');
+
+      // 11. For-Sale archive is empty by default (never auto-populated for a new user)
+      const savedForSale = forSaleArchive.slice();
+      const savedForSaleLS = localStorage.getItem(FORSALE_STORAGE_KEY);
+      localStorage.removeItem(FORSALE_STORAGE_KEY);
+      loadForSaleArchive();
+      assert('For-Sale archive starts empty for a fresh browser (per-user, not bundled)', forSaleArchive.length === 0);
+
+      // 12. For-Sale archive import/export round-trip, isolated from the Collection store
+      forSaleArchive = [{ Name:'Test Listing', Price:'12.50', Quantity:'2', Total:'25.00' }];
+      saveForSaleArchive();
+      const fsCsvLine = FORSALE_COLUMNS.map(c => csvEscape(forSaleArchive[0][c])).join(',');
+      const fsParsedBack = rowsToObjects(parseCSV(FORSALE_COLUMNS.join(',') + '\n' + fsCsvLine))[0];
+      assert('For-Sale CSV round-trip preserves Name and Price', fsParsedBack.Name === 'Test Listing' && fsParsedBack.Price === '12.50');
+      assert('For-Sale archive storage key is distinct from Collection storage key', FORSALE_STORAGE_KEY !== STORAGE_KEY);
+
+      // restore for-sale state
+      forSaleArchive = savedForSale;
+      if(savedForSaleLS !== null) localStorage.setItem(FORSALE_STORAGE_KEY, savedForSaleLS); else localStorage.removeItem(FORSALE_STORAGE_KEY);
+      renderForSale();
+
+    } finally {
+      // restore real state
+      collection = savedCollection;
+      if(savedLS !== null) localStorage.setItem(STORAGE_KEY, savedLS);
+      renderCollection();
+    }
+
+    const passCount = results.filter(r => r.pass).length;
+    log.innerHTML = results.map(r => `<div class="${r.pass ? 'pass' : 'fail'}">${r.pass ? '✓' : '✗'} ${escapeHtml(r.name)}</div>`).join('')
+      + `<div style="margin-top:8px;font-weight:700;">${passCount}/${results.length} passed</div>`;
+    return { passCount, total: results.length, results };
+  }
+  document.getElementById('runTestsBtn').addEventListener('click', runSelfTests);
+
+  /* ============================================================
+     INIT
+  ============================================================ */
+  loadCollection();
+  loadForSaleArchive();
+  if(location.search.includes('test=1')){
+    document.querySelector('.tab-btn[data-tab="about"]').click();
+    setTimeout(runSelfTests, 300);
+  }
+
+})();
+</script>
 </body>
 </html>
