@@ -22,6 +22,10 @@ approximate; they are not a substitute for an actual submitted grade.
    supports more precision.
 3. Use that estimated range when pulling comparable prices, since graded and
    raw (ungraded) prices differ substantially — favor "raw"/ungraded sold
-   comps unless the photo clearly shows a graded slab with a label.
-4. Always disclose that this is a photo-based estimate, not a certified
+   comps unless the physical card has an actual third-party grading slab.
+4. If the card is professionally graded (PSA/BGS/CGC/etc.), use the app's
+   separate "Professionally graded?" field instead of forcing the slab
+   grade into this raw-condition scale — a slab's value is governed by the
+   grading company's number, not a photo-based estimate of the raw card.
+5. Always disclose that this is a photo-based estimate, not a certified
    grade, since actual grading can differ once a card is physically examined.
