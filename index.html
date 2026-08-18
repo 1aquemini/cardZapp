@@ -204,6 +204,26 @@
     border:2px solid rgba(201,162,75,0.4);aspect-ratio:4/3;max-height:60vh;
   }
   .camera-frame video{width:100%;height:100%;object-fit:cover;display:block;}
+
+  /* Full-screen scan overlay — covers the whole viewport, above
+     everything else (header/tabs included), so the camera is
+     unmistakable and impossible to miss. */
+  .camera-overlay{
+    position:fixed;inset:0;z-index:200;background:var(--ink-900);
+    display:flex;align-items:center;justify-content:center;
+    padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));
+  }
+  .camera-overlay-inner{width:100%;max-width:560px;}
+  .camera-frame-full{
+    aspect-ratio:auto;max-height:none;height:min(72vh, 78vw / (3/4));
+    width:100%;border-radius:16px;
+  }
+  .camera-close-btn{
+    position:absolute;top:12px;right:12px;width:38px;height:38px;border-radius:50%;
+    background:rgba(13,17,31,0.65);border:1px solid rgba(255,255,255,0.25);color:#fff;
+    font-size:16px;cursor:pointer;z-index:2;
+  }
+
   /* Standard trading-card ratio (2.5in x 3.5in / 63mm x 88mm) — this is
      the same physical card size for Magic, Pokémon, and Yu-Gi-Oh alike,
      so the frame shape itself doesn't change per game; it just activates
@@ -362,17 +382,19 @@
         <button class="btn ghost sm" id="useUploadInsteadBtn" type="button" style="margin-top:8px;">Or upload a photo instead</button>
       </div>
 
-      <div id="cameraView" style="display:none;">
-        <div class="camera-frame">
-          <video id="cameraVideo" autoplay playsinline muted></video>
-          <div class="camera-guide" id="cameraGuide" aria-hidden="true"></div>
+      <div id="cameraView" class="camera-overlay" style="display:none;">
+        <div class="camera-overlay-inner">
+          <div class="camera-frame camera-frame-full">
+            <video id="cameraVideo" autoplay playsinline muted></video>
+            <div class="camera-guide" id="cameraGuide" aria-hidden="true"></div>
+            <button class="camera-close-btn" id="cancelCameraBtn" type="button" aria-label="Cancel scan">✕</button>
+          </div>
+          <p class="sub" id="cameraStatusMsg" style="margin-top:12px;color:var(--parchment);text-align:center;">Center the card in the frame and hold steady…</p>
+          <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;">
+            <button class="btn brass" id="captureShutterBtn" type="button">⬤ Capture manually</button>
+          </div>
+          <p class="sub" id="cameraError" style="color:var(--garnet-light);margin-top:8px;display:none;text-align:center;"></p>
         </div>
-        <p class="sub" id="cameraStatusMsg" style="margin-top:8px;">Center the card in the frame and hold steady…</p>
-        <div style="display:flex;gap:8px;margin-top:6px;">
-          <button class="btn brass" id="captureShutterBtn" type="button">⬤ Capture manually</button>
-          <button class="btn ghost sm" id="cancelCameraBtn" type="button">Cancel</button>
-        </div>
-        <p class="sub" id="cameraError" style="color:var(--garnet-light);margin-top:8px;display:none;"></p>
       </div>
 
       <label class="capture-zone" for="cardPhotoInput" id="captureZone" style="display:none;">
@@ -385,20 +407,9 @@
         <div class="preview-wrap">
           <img id="photoPreviewImg" alt="Card photo preview" />
           <div style="flex:1;min-width:200px;">
-            <div id="ocrStatus" class="sub" role="status" aria-live="polite" style="margin:0 0 8px;">—</div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <div class="dial" id="confDial" style="display:none;">
-                <svg viewBox="0 0 84 84" width="84" height="84">
-                  <defs><linearGradient id="dialGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stop-color="#A23349"/><stop offset="50%" stop-color="#C9A24B"/><stop offset="100%" stop-color="#3B8570"/>
-                  </linearGradient></defs>
-                  <circle class="dial-track" cx="42" cy="42" r="36"/>
-                  <circle class="dial-fill" id="dialFill" cx="42" cy="42" r="36" stroke-dasharray="226" stroke-dashoffset="226"/>
-                </svg>
-                <div class="dial-label" id="dialLabel">—</div>
-              </div>
-              <button class="btn ghost sm" id="retakeBtn" type="button">Retake photo</button>
-            </div>
+            <div id="ocrStatus" class="sub" role="status" aria-live="polite" style="margin:0 0 6px;">—</div>
+            <div id="ocrRawText" class="sub mono" style="font-size:11px;color:var(--muted);margin:0 0 10px;display:none;"></div>
+            <button class="btn ghost sm" id="retakeBtn" type="button">Retake photo</button>
           </div>
         </div>
       </div>
@@ -835,7 +846,7 @@
       btn.classList.add('active');
       btn.setAttribute('aria-selected','true');
       document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
-      if(btn.dataset.tab !== 'scan') stopCamera();
+      if(btn.dataset.tab !== 'scan'){ stopCamera(); setChromeVisible(true); }
       if(btn.dataset.tab === 'collection') renderCollection();
       if(btn.dataset.tab === 'forsale') renderForSale();
     });
@@ -864,6 +875,7 @@
         document.getElementById('cameraView').style.display = 'none';
         document.getElementById('captureZone').style.display = 'none';
         document.getElementById('liveScanArea').style.display = 'block';
+        setChromeVisible(true);
         toast('Game changed — please retake the photo so lookup matches the right database.');
       }
     });
@@ -876,9 +888,7 @@
   const photoPreviewArea = document.getElementById('photoPreviewArea');
   const photoPreviewImg = document.getElementById('photoPreviewImg');
   const ocrStatus = document.getElementById('ocrStatus');
-  const confDial = document.getElementById('confDial');
-  const dialFill = document.getElementById('dialFill');
-  const dialLabel = document.getElementById('dialLabel');
+  const ocrRawText = document.getElementById('ocrRawText');
   const candidatesPanel = document.getElementById('candidatesPanel');
   const candidateList = document.getElementById('candidateList');
   const manualNameInput = document.getElementById('manualNameInput');
@@ -896,15 +906,6 @@
       r.onerror = reject;
       r.readAsDataURL(file);
     });
-  }
-
-  function setDial(pct){
-    const circumference = 226;
-    if(pct === null){ confDial.style.display = 'none'; return; }
-    confDial.style.display = 'block';
-    const offset = circumference - (circumference * Math.max(0, Math.min(100, pct)) / 100);
-    dialFill.style.strokeDashoffset = offset;
-    dialLabel.textContent = Math.round(pct) + '%';
   }
 
   /* ============================================================
@@ -1020,12 +1021,14 @@
     const croppedDataUrl = cropTopBand(processed.canvas, 0.25);
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE });
     const passA = await worker.recognize(croppedDataUrl);
-    const guessA = guessCardNameFromOCR(passA.data.text || '');
-    if(guessA && guessA.length >= 3) return guessA;
+    const rawA = (passA.data.text || '').trim();
+    const guessA = guessCardNameFromOCR(rawA);
+    if(guessA && guessA.length >= 3) return { guess: guessA, raw: rawA };
 
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK });
     const passB = await worker.recognize(processed.dataUrl);
-    return guessCardNameFromOCR(passB.data.text || '');
+    const rawB = (passB.data.text || '').trim();
+    return { guess: guessCardNameFromOCR(rawB), raw: rawA || rawB };
   }
 
   // Shared pipeline for a captured photo, regardless of source (live camera
@@ -1037,26 +1040,38 @@
     photoPreviewArea.style.display = 'block';
     candidatesPanel.style.display = 'none';
     confirmPanel.style.display = 'none';
-    setDial(null);
+    ocrRawText.style.display = 'none';
     setScanStep(3);
     ocrStatus.textContent = 'Enhancing image…';
 
     try{
       const processed = await preprocessForOCR(dataUrl);
       ocrStatus.textContent = 'Reading name area…';
-      const guess = await recognizeCardName(processed);
-      ocrStatus.textContent = guess
-        ? 'OCR best guess: "' + guess + '" — confirm or correct below.'
-        : 'OCR could not confidently read text — enter the card name manually below.';
+      const { guess, raw } = await recognizeCardName(processed);
+
+      if(raw){
+        ocrRawText.textContent = 'Raw OCR text: "' + raw.slice(0, 120) + '"';
+        ocrRawText.style.display = 'block';
+      }
+
       manualNameInput.value = guess || '';
       candidatesPanel.style.display = 'block';
-      await runLookup(guess);
+
+      if(guess && guess.length >= 3){
+        ocrStatus.textContent = 'OCR best guess: "' + guess + '" — confirm or correct below.';
+        await runLookup(guess);
+      } else {
+        ocrStatus.textContent = 'Couldn\'t confidently read the name — type it in below and matches will appear as you type.';
+        renderCandidates([]);
+        manualNameInput.focus();
+      }
     }catch(err){
       console.error('OCR failed', err);
-      ocrStatus.textContent = 'OCR failed to run — enter the card name manually below.';
+      ocrStatus.textContent = 'OCR failed to run — type the card name below and matches will appear as you type.';
       candidatesPanel.style.display = 'block';
       manualNameInput.value = '';
       renderCandidates([]);
+      manualNameInput.focus();
     }
   }
 
@@ -1072,6 +1087,19 @@
     await processPhoto(dataUrl);
   });
 
+  let quickstartWasVisibleBeforeCamera = false;
+  function setChromeVisible(visible){
+    document.querySelector('.sticky-chrome').style.display = visible ? '' : 'none';
+    const qs = document.getElementById('quickstartPanel');
+    if(!qs) return;
+    if(!visible){
+      quickstartWasVisibleBeforeCamera = qs.style.display !== 'none';
+      qs.style.display = 'none';
+    } else if(quickstartWasVisibleBeforeCamera){
+      qs.style.display = 'block';
+    }
+  }
+
   function resetToPhotoChoice(){
     photoInput.value = '';
     photoPreviewArea.style.display = 'none';
@@ -1080,6 +1108,7 @@
     document.getElementById('cameraView').style.display = 'none';
     document.getElementById('captureZone').style.display = 'none';
     document.getElementById('liveScanArea').style.display = 'block';
+    setChromeVisible(true);
     setScanStep(2);
   }
 
@@ -1220,7 +1249,8 @@
       cameraVideo.srcObject = cameraStream;
       liveScanArea.style.display = 'none';
       document.getElementById('captureZone').style.display = 'none';
-      cameraView.style.display = 'block';
+      cameraView.style.display = 'flex';
+      setChromeVisible(false);
       cameraError.style.display = 'none';
       cameraStatusMsg.textContent = 'Center the card in the frame and hold steady…';
       cameraVideo.addEventListener('loadedmetadata', startQualityLoop, { once: true });
@@ -1240,6 +1270,7 @@
     const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
     stopCamera();
     cameraView.style.display = 'none';
+    setChromeVisible(true);
     processPhoto(dataUrl);
   }
 
@@ -1334,12 +1365,13 @@
       }
       renderCandidates(candidates);
       populateSetOptions(candidates);
-      setDial(candidates.length ? Math.min(95, 40 + candidates.length*10) : 15);
+      ocrStatus.textContent = candidates.length
+        ? candidates.length + ' possible match' + (candidates.length===1?'':'es') + ' found — tap one, or keep typing to narrow it down.'
+        : 'No automatic matches for "' + query + '" — double-check the spelling above, or use "None of these" to enter it by hand.';
     }catch(err){
       console.error('Lookup failed', err);
-      ocrStatus.textContent += ' Lookup unavailable (offline or rate-limited) — enter details manually.';
+      ocrStatus.textContent = 'Lookup unavailable right now (offline or rate-limited) — you can still enter the card by hand below.';
       renderCandidates([]);
-      setDial(0);
     }
   }
 
