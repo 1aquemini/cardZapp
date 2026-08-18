@@ -1,5 +1,6 @@
 /**
  * Card Library & Inventory Engine - Fully Integrated
+ * Updated for Local JSON Caching, Tesseract OCR Normalization, and Fast Database Matching
  */
 
 const CardApp = {
@@ -8,11 +9,13 @@ const CardApp = {
   scanInterval: null,
   inventory: [],
   filteredInventory: [],
+  localCardDatabase: {}, // In-memory hash map for O(1) database lookups
 
-  init() {
+  async init() {
     this.bindUI();
     this.sanitizeTerminology();
     this.loadSavedInventory();
+    await this.loadLocalDataset(); // Load JSON dataset into memory on startup
     console.log("Card Library & Inventory Manager initialized successfully.");
   },
 
@@ -51,6 +54,38 @@ const CardApp = {
         }
       }
     });
+  },
+
+  // 1. MEMORY CACHING: Load large JSON dataset once upon initialization
+  async loadLocalDataset() {
+    try {
+      // Replace 'cards_dataset.json' with your local data file path or API endpoint
+      const response = await fetch('cards_dataset.json'); 
+      if (!response.ok) {
+        console.warn("Local JSON dataset not found. Falling back to dynamic API calls.");
+        return;
+      }
+      const data = await response.json();
+      
+      // Convert Array to Hash Map for O(1) lookups
+      // Assuming your JSON has { "name": "...", "set": "...", "market_price": "..." }
+      data.forEach(card => {
+        if (card.name) {
+          const normalizedKey = this.normalizeText(card.name);
+          this.localCardDatabase[normalizedKey] = card;
+        }
+      });
+      console.log(`Successfully cached ${Object.keys(this.localCardDatabase).length} cards in memory.`);
+    } catch (error) {
+      console.error("Error loading local dataset:", error);
+    }
+  },
+
+  // 2. TEXT NORMALIZATION: Pre-process strings to match imperfect OCR scans
+  normalizeText(text) {
+    if (!text) return "";
+    // Lowercase, strip punctuation and whitespace
+    return text.toLowerCase().replace(/[^a-z0-9]/g, '');
   },
 
   downloadBulkTemplate() {
@@ -186,7 +221,9 @@ const CardApp = {
         videoElement.play();
         container.style.display = 'block';
         this.isScanning = true;
-        this.scanInterval = setInterval(() => this.processLiveFrame(videoElement), 600);
+        
+        // Scan at a reasonable interval to prevent crashing the client
+        this.scanInterval = setInterval(() => this.processLiveFrame(videoElement), 1000);
       }
     } catch (err) {
       console.error("Camera access error:", err);
@@ -246,10 +283,50 @@ const CardApp = {
     }, 'image/jpeg', 0.90);
   },
 
+  // 3. OCR EXECUTION & MATCHING BEHAVIOR
   async executeOCRAndFetchCard(imageBlob) {
-    const detectedCardName = "Mutavault"; 
-    if (detectedCardName) {
-      this.fetchCardPrintingsAcrossAllSets(detectedCardName);
+    if (!window.Tesseract) {
+      console.error("Tesseract.js is missing from index.html.");
+      return;
+    }
+
+    try {
+      // Execute OCR scan using Tesseract Worker
+      const { data: { text } } = await Tesseract.recognize(imageBlob, 'eng');
+      
+      const normalizedScanText = this.normalizeText(text);
+      if (normalizedScanText.length < 3) return; // Ignore visual noise and blank scans
+
+      // Attempt exact Hash Map lookup
+      if (this.localCardDatabase[normalizedScanText]) {
+        const matchedCard = this.localCardDatabase[normalizedScanText];
+        this.fetchCardPrintingsAcrossAllSets(matchedCard.name);
+        return;
+      }
+
+      // Fuzzy String Match Fallback
+      let bestMatch = null;
+      for (const key in this.localCardDatabase) {
+        // Simple containment check. For higher accuracy, you can implement Levenshtein distance here.
+        if (key.includes(normalizedScanText) || normalizedScanText.includes(key)) {
+          bestMatch = this.localCardDatabase[key];
+          break;
+        }
+      }
+
+      if (bestMatch) {
+        this.fetchCardPrintingsAcrossAllSets(bestMatch.name);
+      } else {
+        // Final fallback: execute exact API call if local database matching fails
+        // This handles cases where the card name is correct but not in the cached JSON
+        const rawCleanedName = text.replace(/[^a-zA-Z\s]/g, '').trim();
+        if (rawCleanedName.length > 3) {
+           this.fetchCardPrintingsAcrossAllSets(rawCleanedName);
+        }
+      }
+
+    } catch (err) {
+      console.error("OCR or Matching Failure:", err);
     }
   },
 
